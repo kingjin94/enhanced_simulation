@@ -1,0 +1,16 @@
+# Start a container
+xhost +local:root
+sudo docker run -it     --env="DISPLAY"     --env="QT_X11_NO_MITSHM=1"     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --runtime=nvidia  --name "main_ros"   ros:melodic-desktop-full     bash
+xhost -local:root
+
+# Add additional shell
+sudo docker exec -it [container-id] bash
+
+# Restart container
+sudo docker restart main_ros
+
+# Stop container
+sudo docker stop main_ros
+
+# Clean up docker
+docker system prune

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+  <xacro:include filename="$(find enhanced_sim)/model/camera_bot.xacro"/>
+
+  <!-- for simulation -->
+  <xacro:include filename="$(find enhanced_sim)/model/camera_bot.gazebo.xacro"/>
+
+</robot>
+

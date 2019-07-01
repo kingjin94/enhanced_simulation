@@ -1,0 +1,33 @@
+# Add to end of /root/.bashrc
+echo "source /opt/ros/melodic/setup.bash" >> /root/.bashrc
+
+# Steps for franka sim by https://erdalpekel.de/?p=55
+cd /home
+# Install libfranka from source https://frankaemika.github.io/docs/install_linux.html
+apt update
+apt install build-essential cmake git libpoco-dev libeigen3-dev
+git clone --recursive https://github.com/frankaemika/libfranka
+cd libfranka
+
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . -- -j16 # allow make to multithread
+
+# panda simulation
+mkdir -p catkin_ws/src
+cd catkin_ws/src
+git clone https://github.com/erdalpekel/panda_simulation.git
+git clone https://github.com/erdalpekel/panda_moveit_config.git
+git clone --branch simulation https://github.com/erdalpekel/franka_ros.git
+cd ..
+apt install libboost-filesystem-dev
+rosdep install --from-paths src --ignore-src -y --skip-keys libfranka --skip-keys moveit_perception
+
+catkin_make -j16 -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/libfranka/build
+source devel/setup.bash
+
+# start simulation
+roslaunch panda_simulation simulation.launch
+
+

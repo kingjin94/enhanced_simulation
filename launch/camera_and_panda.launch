@@ -1,0 +1,9 @@
+<launch>
+<!-- Start simulation -->
+<include file="$(find panda_simulation)/launch/simulation.launch"/>
+
+<!-- Add Camera Robot -->
+<param name="cam_bot_description" command="$(find xacro)/xacro $(find enhanced_sim)/model/camera_bot.urdf.xacro"/>
+<node name="spawn_cam_urdf" pkg="gazebo_ros" type="spawn_model" args="-x 2 -param cam_bot_description -urdf -model cam_bot"/>
+</launch>
+
