@@ -17,11 +17,8 @@ RUN cd /home && mkdir -p catkin_ws/src && cd catkin_ws/src && \
 	git clone https://github.com/erdalpekel/panda_simulation.git && \
 	git clone https://github.com/erdalpekel/panda_moveit_config.git && \
 	git clone --branch simulation https://github.com/erdalpekel/franka_ros.git && \
-	cd /home/catkin_ws/src/panda_simulation && sed -i "s/<depend>moveit_visual_tools<\/depend>/<depend>moveit_visual_tools<\/depend>\n  <depend>moveit_simple_controller_manager<\/depend>/g" package.xml && \ 
 	cd /home/catkin_ws && apt install libboost-filesystem-dev && \
 	rosdep install --from-paths src --ignore-src -y --skip-keys libfranka --skip-keys moveit_perception
-
-# sed is dirty patch, please remove when in repository
 
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && \
