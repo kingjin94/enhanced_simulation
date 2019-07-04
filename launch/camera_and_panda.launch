@@ -5,6 +5,8 @@
 <!-- Add Camera Robot -->
 <param name="cam_bot_description" command="$(find xacro)/xacro $(find enhanced_sim)/model/camera_bot.urdf.xacro"/>
 <node name="spawn_cam_urdf" pkg="gazebo_ros" type="spawn_model" args="-x 2 -param cam_bot_description -urdf -model cam_bot"/>
-<node pkg="enhanced_sim" name="CollidingNode" type="CollidingNode.py" output="screen"/>
+<node name="CollidingNode" pkg="enhanced_sim" type="CollidingNode.py" output="screen"/>
+<!-- Adapt if camera bot is moved or modified -->
+<node name="CameraTransform" pkg="tf" type="static_transform_publisher" args="1.95 0 1 -1.57079632679 0 1.57079632679 world camera_bot/camera_link 10"/>
 </launch>
 
