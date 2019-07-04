@@ -28,6 +28,7 @@ Available topics
     * /tf --> transforamtions along kinematic chain
     * /panda_[arm|hand]_controller/state --> actual, desired and error for q, qd, qdd, torque
     * /camera_bot/camera_bot/camera1/image_raw --> image stream from camera bot
+    * /panda/bumper --> overall collision status (/colliding) and collisions of each link with position, wrench and normal (/panda_*)
 
 * Inputs:
     * /panda_[arm|hand]_controller/follow_joint_trajectory --> Interface for a FollowJointTrajectory action client (example in src/gripper_close_open.py)
