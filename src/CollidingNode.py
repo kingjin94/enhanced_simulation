@@ -10,7 +10,7 @@ publish a boolean variable (per link) saying whether in collision
 """
 
 class CollidingNode(object):
-	def __init__(self, collision_state_update_freq = 10):
+	def __init__(self, collision_state_update_freq = 100):
 		self.update_rate = rospy.Rate(collision_state_update_freq)
 		self.pub = rospy.Publisher('/panda/bumper/colliding', CollisionState, queue_size=10)
 
