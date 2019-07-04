@@ -8,6 +8,10 @@
 	</gazebo> -->
 
 	<!-- Base Link -->
+	<gazebo>
+		<static>true</static>
+	</gazebo>
+	
 	<gazebo reference="base_link">
 		<material>Gazebo/Green</material>
 	</gazebo>

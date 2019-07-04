@@ -3,10 +3,21 @@
 <include file="$(find panda_simulation)/launch/simulation.launch"/>
 
 <!-- Add Camera Robot -->
-<param name="cam_bot_description" command="$(find xacro)/xacro $(find enhanced_sim)/model/camera_bot.urdf.xacro"/>
-<node name="spawn_cam_urdf" pkg="gazebo_ros" type="spawn_model" args="-x 2 -param cam_bot_description -urdf -model cam_bot"/>
+<arg name="x" default="2.0"/> <!-- Position on plane -->
+<arg name="y" default="0.0"/>
+<arg name="Y" default="3.14159265359"/> <!-- Orientation on plane -->
+<arg name="height" default="1.0"/>
+
+<param name="cam_bot_description" command="$(find xacro)/xacro $(find enhanced_sim)/model/camera_bot.urdf.xacro height1:=$(arg height)"/>
+<node name="spawn_cam_urdf" pkg="gazebo_ros" type="spawn_model" 
+	args="-x $(arg x) -y $(arg y) -z 0
+		  -R 0 -P 0 -Y $(arg Y) 
+		  -param cam_bot_description -urdf -model cam_bot"/>
 <node name="CollidingNode" pkg="enhanced_sim" type="CollidingNode.py" output="screen"/>
 <!-- Adapt if camera bot is moved or modified -->
-<node name="CameraTransform" pkg="tf" type="static_transform_publisher" args="1.95 0 1 -1.57079632679 0 1.57079632679 world camera_bot/camera_link 10"/>
+<arg name="x_cam" default="$(eval arg('x') + cos(arg('Y')) * 0.05)"/>
+<arg name="y_cam" default="$(eval arg('y') + sin(arg('Y')) * 0.05)"/>
+<arg name="Y_cam" default="$(eval arg('Y') + 1.57079632679)"/>
+<node name="CameraTransform" pkg="tf" type="static_transform_publisher" args="$(arg x_cam)  $(arg y_cam) $(arg height) $(arg Y_cam) 3.14159265359 1.57079632679 world camera_bot/camera_link 10"/>
 </launch>
 
