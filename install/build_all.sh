@@ -1,7 +1,7 @@
 cd docker_images/ros/melodic/ubuntu/bionic
 cd ros-core
 sudo docker build -t ros:melodic-ros-core-bionic .
-cd ../ros-basic
+cd ../ros-base
 sudo docker build -t ros:melodic-ros-base-bionic .
 cd ../robot
 sudo docker build -t ros:melodic-robot-bionic .
