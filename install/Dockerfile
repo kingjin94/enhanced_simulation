@@ -14,7 +14,7 @@ RUN cd /home && apt update && \
 
 # panda simulation
 RUN cd /home && mkdir -p catkin_ws/src && cd catkin_ws/src && \
-	git clone https://github.com/erdalpekel/panda_simulation.git && \
+	git clone https://github.com/kingjin94/panda_simulation.git && \
 	git clone https://github.com/kingjin94/panda_moveit_config.git && \
 	git clone --branch simulation https://github.com/kingjin94/franka_ros && \
 	cd /home/catkin_ws && apt install libboost-filesystem-dev && \
