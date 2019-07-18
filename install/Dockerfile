@@ -1,8 +1,5 @@
 FROM ros:melodic-desktop-full
 
-# Add to end of /root/.bashrc
-RUN echo "source /opt/ros/melodic/setup.bash" >> /root/.bashrc
-
 # Steps for franka sim by https://erdalpekel.de/?p=55
 # Install libfranka from source https://frankaemika.github.io/docs/install_linux.html
 RUN cd /home && apt update && \
@@ -10,16 +7,29 @@ RUN cd /home && apt update && \
 	git clone --recursive https://github.com/frankaemika/libfranka && \
 	cd libfranka && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && \
 	cmake --build . -- -j16 # allow make to multithread
+	
+RUN apt install -y ssh
+ARG SSH_PRIVATE_KEY
+RUN mkdir /root/.ssh/ && \
+    echo "${SSH_PRIVATE_KEY}" > /root/.ssh/id_rsa && \
+	chmod 600 /root/.ssh/id_rsa && \
+    ssh-keyscan github.com >> /root/.ssh/known_hosts
+
+
+# Add to end of /root/.bashrc
+RUN echo "source /opt/ros/melodic/setup.bash" >> /root/.bashrc
 
 
 # panda simulation
 RUN cd /home && mkdir -p catkin_ws/src && cd catkin_ws/src && \
-	git clone https://github.com/kingjin94/panda_simulation.git && \
-	git clone https://github.com/kingjin94/panda_moveit_config.git && \
-	git clone --branch simulation https://github.com/kingjin94/franka_ros && \
+	git clone ssh://git@github.com/kingjin94/enhanced_simulation.git && \
+	git clone ssh://git@github.com/kingjin94/panda_simulation.git && \
+	git clone ssh://git@github.com/kingjin94/panda_moveit_config.git && \
+	git clone --branch simulation ssh://git@github.com/kingjin94/franka_ros && \
+	# Not yet ready for primetime git clone --branch melodic-devel ssh://git@github.com/kingjin94/gazebo_ros_pkgs.git && \
 	cd /home/catkin_ws && apt install libboost-filesystem-dev && \
 	rosdep install --from-paths src --ignore-src -y --skip-keys libfranka --skip-keys moveit_perception
 
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && \
-	catkin_make -j16 -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/libfranka/build"
+	catkin_make_isolated -j16 -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/libfranka/build"
