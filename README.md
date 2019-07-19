@@ -7,8 +7,9 @@ Install
 
 1. Docker
     1. Have a PC with a Nvidia GPU, docker and nvidia-docker2 installed
-    2. Build docker image with install/build_all.sh
-    3. Use commands in "install/commands_for_docker" to get the container running with X11 passthrough
+    2. Change $HOME/.ssh/id_rsa to your private ssh key for github
+    3. Build docker image with install/build_all.sh
+    4. Use commands in "install/commands_for_docker" to get the container running with X11 passthrough
 2. Install ros melodic full desktop, than follow steps from Dockerfile in install/
 
 First start-up

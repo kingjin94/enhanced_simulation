@@ -10,4 +10,4 @@ sudo docker build -t osrf/ros:melodic-desktop-bionic .
 cd ../desktop-full
 sudo docker build -t ros:melodic-desktop-full .
 cd ../../../../../../
-sudo docker build -t panda_sim . 
+sudo docker build --build-arg SSH_PRIVATE_KEY="$(cat $HOME/.ssh/id_rsa)" -t panda_sim .
