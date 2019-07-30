@@ -1,0 +1,27 @@
+<!-- uses panda to explore its surroundings visually and eventually tactily -->
+<launch>
+<include file="$(find enhanced_sim)/launch/camera_and_panda.launch"/> <!-- start sim and rviz -->
+<include file="$(find realtime_urdf_filter)/launch/realtime_urdf_filter.launch"/> <!-- start anti-self filter for camera image -->
+
+<node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+	<param name="resolution" value="0.02" />
+	
+	<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
+	<param name="frame_id" type="string" value="world" />
+	
+	<!-- maximum range to integrate (speedup!) -->
+	<param name="sensor_model/max_range" value="1.0" /> <!-- Keep smaller than sensor range, otherwise big "walls" appear -->
+	
+	<!-- data source to integrate (PointCloud2) -->
+	<remap from="cloud_in" to="/panda/depth_camera/depth_image/filtered/points" />
+</node>
+
+<!-- Map standalone octomap into moveit planning scene -->
+<node pkg="enhanced_sim" name="planningSceneUpdater" type="planningSceneUpdater.py" output="screen"/>
+
+<!-- start exploration script -->
+
+<!--
+<node pkg="enhanced_sim" name="explorer" type="random_explorer.py" output="screen"/> 
+-->
+</launch>

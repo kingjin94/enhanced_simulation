@@ -26,7 +26,7 @@ class PlanningSceneUpdater:
 		
 		
 def main(args):
-	rospy.init_node('planningSceneUpdater')
+	rospy.init_node('planningSceneUpdater', anonymous=True)
 	planningSceneUpdater = PlanningSceneUpdater()
 
 	try:

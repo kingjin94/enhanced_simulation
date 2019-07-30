@@ -22,6 +22,6 @@
 <arg name="R_cam" default="$(eval arg('Y') + 1.57079632679)"/>
 <arg name="Y_cam" default="$(eval 1.57079632679-arg('P'))"/>
 <node name="CameraTransform" pkg="tf" type="static_transform_publisher" args="$(arg x_cam)  $(arg y_cam) $(arg height) $(arg R_cam) 3.14159265359 $(arg Y_cam) world camera_bot/camera_link 10"/>
-<node name="CameraTransformPanda" pkg="tf" type="static_transform_publisher" args="0 0 0 -1.57079632679 0 -1.57079632679 panda_camera panda/panda_camera 10"/>
+<node name="CameraTransformPanda" pkg="tf" type="static_transform_publisher" args="0 0 0 -1.57079632679 0 -1.57079632679 panda_camera panda/panda_camera 10"/> <!-- see gazebo_ros_depth_camera.cpp -->
 </launch>
 
