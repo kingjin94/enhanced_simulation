@@ -8,7 +8,8 @@ from octomap_msgs.msg import Octomap
 
 class PlanningSceneUpdater:
 	def __init__(self):
-		self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene', PlanningScene, queue_size=5)
+		# self.scene_pub = rospy.Publisher('/move_group/monitored_planning_scene', PlanningScene, queue_size=5)
+		self.scene_pub = rospy.Publisher('/planning_scene', PlanningScene, queue_size=5)
 		self.octomap_sub = rospy.Subscriber("/octomap_binary", Octomap, self.callback)
 		rospy.loginfo("PlanningSceneUpdater started")
 		
