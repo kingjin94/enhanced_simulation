@@ -1,6 +1,11 @@
 <launch>
 <!-- Start simulation -->
-<include file="$(find panda_simulation)/launch/simulation.launch"/>
+<arg name="rviz" default="true" />
+<arg name="world_name" default="$(find enhanced_sim)/worlds/test.world"/> <!-- find others in /usr/share/gazebo-9/worlds/ -->
+<include file="$(find panda_simulation)/launch/simulation.launch">
+	<arg name="rviz" value="$(arg rviz)"/>
+	<arg name="world_name" value="$(arg world_name)"/>
+</include>
 
 <!-- Add Camera Robot -->
 <arg name="x" default="2.0"/> <!-- Position on plane -->
@@ -22,5 +27,6 @@
 <arg name="R_cam" default="$(eval arg('Y') + 1.57079632679)"/>
 <arg name="Y_cam" default="$(eval 1.57079632679-arg('P'))"/>
 <node name="CameraTransform" pkg="tf" type="static_transform_publisher" args="$(arg x_cam)  $(arg y_cam) $(arg height) $(arg R_cam) 3.14159265359 $(arg Y_cam) world camera_bot/camera_link 10"/>
+<node name="CameraTransformPanda" pkg="tf" type="static_transform_publisher" args="0 0 0 -1.57079632679 0 -1.57079632679 panda_camera panda/panda_camera 10"/> <!-- see gazebo_ros_depth_camera.cpp -->
 </launch>
 
