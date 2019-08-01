@@ -33,3 +33,18 @@ RUN cd /home && mkdir -p catkin_ws/src && cd catkin_ws/src && \
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && \
 	catkin_make_isolated -j16 -DCMAKE_BUILD_TYPE=Release -DFranka_DIR:PATH=/home/libfranka/build"
+	
+# urdf-filter
+RUN cd /home/catkin_ws/src && git clone git@github.com:kingjin94/realtime_urdf_filter.git && \
+	apt-get install -y glew-utils mesa-utils python-pip && cd .. && pip install scipy scikit-image && \
+	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin_make_isolated -j16"
+
+# get octomap
+RUN apt-get update && apt-get install -y ros-melodic-octomap ros-melodic-octomap-mapping ros-melodic-octomap-msgs ros-melodic-octomap-ros ros-melodic-octomap-server
+
+# Additional moveit stuff
+RUN apt-get install -y ros-melodic-moveit
+
+# Fix /root/.panda_simulation does not exist error
+RUN mkdir /root/.panda_simulation
