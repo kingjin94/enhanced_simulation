@@ -1,6 +1,11 @@
 <!-- uses panda to explore its surroundings visually and eventually tactily -->
 <launch>
-<include file="$(find enhanced_sim)/launch/camera_and_panda.launch"/> <!-- start sim and rviz -->
+<include file="$(find enhanced_sim)/launch/camera_and_panda.launch"> <!-- start sim -->
+	<arg name="rviz" value="false" />
+</include>
+<node name="$(anon rviz)" pkg="rviz" type="rviz" respawn="false" args="-d $(find enhanced_sim)/launch/debug_view.rviz" output="screen">
+	<rosparam command="load" file="$(find panda_moveit_config)/config/kinematics.yaml"/>
+</node>
 <include file="$(find realtime_urdf_filter)/launch/realtime_urdf_filter.launch"/> <!-- start anti-self filter for camera image -->
 
 <node pkg="octomap_server" type="octomap_server_node" name="octomap_server">

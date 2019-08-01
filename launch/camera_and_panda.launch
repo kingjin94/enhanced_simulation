@@ -1,6 +1,9 @@
 <launch>
 <!-- Start simulation -->
-<include file="$(find panda_simulation)/launch/simulation.launch"/>
+<arg name="rviz" default="true" />
+<include file="$(find panda_simulation)/launch/simulation.launch">
+	<arg name="rviz" value="$(arg rviz)"/>
+</include>
 
 <!-- Add Camera Robot -->
 <arg name="x" default="2.0"/> <!-- Position on plane -->
