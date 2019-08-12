@@ -22,7 +22,9 @@
 </node>
 
 <!-- Map standalone octomap into moveit planning scene -->
+<!-- Now done by octomap_helper / listener, to be integrated in launch file
 <node pkg="enhanced_sim" name="planningSceneUpdater" type="planningSceneUpdater.py" output="screen"/>
+-->
 
 <!-- start exploration script -->
 
