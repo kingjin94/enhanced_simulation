@@ -41,7 +41,7 @@ RUN cd /home/catkin_ws/src && git clone git@github.com:kingjin94/realtime_urdf_f
 	cd /home/catkin_ws/ && catkin_make_isolated -j16"
 
 # get octomap
-RUN apt-get update && apt-get install -y ros-melodic-octomap ros-melodic-octomap-mapping ros-melodic-octomap-msgs ros-melodic-octomap-ros ros-melodic-octomap-server
+RUN apt-get update && apt-get install -y ros-melodic-octomap ros-melodic-octomap-mapping ros-melodic-octomap-msgs ros-melodic-octomap-ros ros-melodic-octomap-server ros-melodic-octomap-rviz-plugins
 
 # Additional moveit stuff
 RUN apt-get install -y ros-melodic-moveit
