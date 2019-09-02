@@ -15,7 +15,7 @@
 	<param name="frame_id" type="string" value="world" />
 	
 	<!-- maximum range to integrate (speedup!) -->
-	<param name="sensor_model/max_range" value="1.0" /> <!-- Keep smaller than sensor range, otherwise big "walls" appear -->
+	<param name="sensor_model/max_range" value="2.0" /> <!-- Keep smaller than sensor range, otherwise big "walls" appear -->
 	
 	<!-- data source to integrate (PointCloud2) -->
 	<remap from="cloud_in" to="/panda/depth_camera/depth_image/filtered/points" />
@@ -25,6 +25,10 @@
 <!-- Now done by octomap_helper / listener, to be integrated in launch file
 <node pkg="enhanced_sim" name="planningSceneUpdater" type="planningSceneUpdater.py" output="screen"/>
 -->
+
+<!-- Start map entropy and octomap modifier -->
+<node pkg="filter_octomap" type="octomap_alter_unknown" name="octomap_alter_unknown"/>
+<node pkg="filter_octomap" type="octomap_entropy_publisher" name="octomap_entropy_publisher"/>
 
 <!-- start exploration script -->
 
