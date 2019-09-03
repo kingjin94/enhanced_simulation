@@ -58,7 +58,7 @@ def random_walk(move_group):
 			while True: # do ... while
 				pose_goal.position.x = 1.4 * (random.random()-0.5) # -0.7 till 0.7 m
 				pose_goal.position.y = 1.4 * (random.random()-0.5) # -0.7 till 0.7 m
-				pose_goal.position.z = 0.5 * random.random() +0.4 # 0.4 till 0.9 m
+				pose_goal.position.z = 1. * random.random() - 0.1 # -0.1 till 0.9 m
 				if min(distance_pos_list(scanned_positions, pose_goal.position)) > MIN_DIST_LOOKOUTS:
 					break
 					
