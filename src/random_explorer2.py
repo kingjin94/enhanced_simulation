@@ -43,18 +43,17 @@ def random_walk(move_group):
 		
 					move_group.go(joint_goal, wait=True)
 					move_group.stop()
-					rospy.sleep(1)
+					rospy.sleep(.5)
 			scanned_positions.append(move_group.get_current_pose().pose.position)
+			rospy.sleep(3)
 		else:
 			print("Was here before")
-				
-		move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
-		move_group.set_max_acceleration_scaling_factor(0.1)
-
 		
 		print("Moving to new position")
 		# Find new goal
 		while True:
+			move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
+			move_group.set_max_acceleration_scaling_factor(0.05)
 			pose_goal = geometry_msgs.msg.Pose()
 			while True: # do ... while
 				pose_goal.position.x = 1.4 * (random.random()-0.5) # -0.7 till 0.7 m
@@ -73,7 +72,7 @@ def random_walk(move_group):
 			print("Path length: {}; Exec time: {} s".format(len(plan.joint_trajectory.points), exec_time))
 			if plan:
 				print("Valid plan found")
-				if not (0.1 < exec_time < 4.0) \
+				if not (0.1 < exec_time < 6.0) \
 					or not (1 < len(plan.joint_trajectory.points) < 100):
 					print("To long")
 					continue
@@ -82,6 +81,7 @@ def random_walk(move_group):
 					ret = move_group.execute(plan, wait=False) # Move to goal
 					rospy.sleep(exec_time+1) # Wait till arrived		
 					move_group.stop()	
+					rospy.sleep(1.)
 					break	
 				except KeyboardInterrupt:
 					return
