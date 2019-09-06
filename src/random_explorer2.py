@@ -5,15 +5,41 @@ import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
 from math import pi, sqrt
-from std_msgs.msg import String
+from std_msgs.msg import String, Float64
 from moveit_commander.conversions import pose_to_list
 from tf.transformations import random_quaternion, euler_from_quaternion, quaternion_from_euler
 import numpy as np
 import random
+from filter_octomap.msg import table
+import touchTable
+
+# For initial move
+import actionlib
+from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
+from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
+
 
 MIN_DIST_LOOKOUTS = 0.4
 
 rospy.init_node('random_explorer', anonymous=True)
+
+def force_home():
+	# Move to better starting position
+	print("Moving to start position")
+	client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
+	client.wait_for_server()
+	goal = FollowJointTrajectoryGoal()
+	joint_traj = JointTrajectory()
+	joint_traj.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
+	point1 = JointTrajectoryPoint()
+	#point1.positions = [0.33877080806309046, -0.3623406480725775, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795, 0.06015034910227879]
+	point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
+	point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
+	point1.time_from_start = rospy.Duration(2.)
+	joint_traj.points = [point1]
+	goal.trajectory = joint_traj
+	joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
+	client.send_goal_and_wait(goal)
 
 def distance_pos_list(prev_positions, pos):
 	dist = []
@@ -43,15 +69,20 @@ def random_walk(move_group):
 		
 					move_group.go(joint_goal, wait=True)
 					move_group.stop()
-					rospy.sleep(.5)
+					rospy.sleep(1.)
+					
 			scanned_positions.append(move_group.get_current_pose().pose.position)
 			rospy.sleep(3)
 		else:
 			print("Was here before")
 		
 		print("Moving to new position")
-		# Find new goal
+		# Find new positions and go to them
+		num_replan = 0
 		while True:
+			if num_replan > 100:
+				print("Still nothing found .. forcing home")
+				force_home()
 			move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
 			move_group.set_max_acceleration_scaling_factor(0.05)
 			pose_goal = geometry_msgs.msg.Pose()
@@ -75,8 +106,10 @@ def random_walk(move_group):
 				if not (0.1 < exec_time < 6.0) \
 					or not (1 < len(plan.joint_trajectory.points) < 100):
 					print("To long")
+					num_replan += 1
 					continue
 				print("executing ...")
+				num_replan = 0
 				try:
 					ret = move_group.execute(plan, wait=False) # Move to goal
 					rospy.sleep(exec_time+1) # Wait till arrived		
@@ -87,40 +120,22 @@ def random_walk(move_group):
 					return
 				except Exception as e:
 					print(e)
-			
-		else:
-			print("No plan found; new goal ...")
+			else:
+				num_replan += 1
+				print("No plan found; new goal ...")			
 				
-		# move_group.set_pose_target(pose_goal)
-		# try:
-			# move_group.plan()
-			# print("Going")
-			# move_group.go(wait=True)
-		# except Exception as e:
-			# print("No valid path found")
-			# print(e)
+		# evaluate if done
+		mapEntropyMsg = rospy.wait_for_message("/octomap_new/entropy", Float64)
+		tableMsg = rospy.wait_for_message("/octomap_new/table", table)
+		
+		if mapEntropyMsg.data < -0.5 and tableMsg.score > 900000:
+			print("Table found and map good enough")
+			print("Moving on to touching the table")
+			return True
+		
+		
 
-# For initial move
-import actionlib
-from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
-from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
-
-# Move to better starting position
-print("Moving to start position")
-client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
-client.wait_for_server()
-goal = FollowJointTrajectoryGoal()
-joint_traj = JointTrajectory()
-joint_traj.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
-point1 = JointTrajectoryPoint()
-#point1.positions = [0.33877080806309046, -0.3623406480725775, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795, 0.06015034910227879]
-point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
-point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
-point1.time_from_start = rospy.Duration(2.)
-joint_traj.points = [point1]
-goal.trajectory = joint_traj
-joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
-client.send_goal_and_wait(goal)
+force_home()
 
 # Start Motion Planner
 
@@ -139,6 +154,7 @@ move_group.set_max_acceleration_scaling_factor(0.1)
 try:
 	print("Start exploring")
 	random_walk(move_group)
+	touchTable.touch_and_refine_table(robot, scene, move_group)
 except KeyboardInterrupt:
 	rospy.loginfo("random_explorer shutting down")
 
