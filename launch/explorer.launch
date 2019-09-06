@@ -29,6 +29,7 @@
 <!-- Start map entropy and octomap modifier -->
 <node pkg="filter_octomap" type="octomap_alter_unknown" name="octomap_alter_unknown"/>
 <node pkg="filter_octomap" type="octomap_entropy_publisher" name="octomap_entropy_publisher"/>
+<node pkg="filter_octomap" type="octomap_to_grid" name="find_table_in_octomap"/>
 
 <!-- start exploration script -->
 
