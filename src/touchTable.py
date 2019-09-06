@@ -78,6 +78,7 @@ def touch_and_refine_table(robot, scene, move_group):
 		pos_d = np.asarray((pose_goal.position.x,pose_goal.position.y,pose_goal.position.z))
 		old_e = np.zeros(6)
 		sum_e = np.zeros(6)
+		touchSensorMsg = None
 		while True:  # while not touched later!!!
 			pose_c = move_group.get_current_pose()
 			pos_c = np.asarray((pose_c.pose.position.x, pose_c.pose.position.y, pose_c.pose.position.z))
@@ -119,12 +120,16 @@ def touch_and_refine_table(robot, scene, move_group):
 				break
 			
 		print("Touched the surface")
-		rospy.sleep(2.)
-		ballSensorMsg = ContactsState()
-		while ballSensorMsg.states == []:
-			ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
-		#print(ballSensorMsg)
-		touchPoses.append(ballSensorMsg)
+		if '/panda/bumper/panda_probe_ball' in touchSensorMsg.collidingLinks:
+			rospy.sleep(2.)
+			ballSensorMsg = ContactsState()
+			while ballSensorMsg.states == []:
+				ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
+			#print(ballSensorMsg)
+			touchPoses.append(ballSensorMsg)
+		else:
+			print("Collided with wrong part; ignored")
+			i-=1
 		
 		print("Recording done, retracting ...")
 		
