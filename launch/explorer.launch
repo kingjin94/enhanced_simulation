@@ -8,7 +8,7 @@
 </node>
 <include file="$(find realtime_urdf_filter)/launch/realtime_urdf_filter.launch"/> <!-- start anti-self filter for camera image -->
 
-<node pkg="octomap_server" type="octomap_server_node" name="octomap_server">
+<node pkg="octomap_server" type="octomap_server_node" name="octomap_server" args="$(find filter_octomap)/maps/prefilled1cm.ot" output="screen">
 	<param name="resolution" value="0.02" />
 	
 	<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
@@ -17,14 +17,19 @@
 	<!-- maximum range to integrate (speedup!) -->
 	<param name="sensor_model/max_range" value="2.0" /> <!-- Keep smaller than sensor range, otherwise big "walls" appear -->
 	
+	<!-- set occupied threshold higher -->
+	<param name="sensor_model/hit" value="0.6"/>
+	<param name="sensor_model/miss" value="0.4"/>
+	<param name="sensor_model/min" value="0.2"/>
+	<param name="sensor_model/max" value="0.8"/>
+	
+	<!-- Speed up by disabeling features -->
+	<param name="height_map" value="false"/>
+	<param name="occupancy_min_z" value="-1"/> <!-- remove virtually all pts. from the other generated represenations -->
+	<param name="occupancy_max_z" value="-0.5"/>
 	<!-- data source to integrate (PointCloud2) -->
 	<remap from="cloud_in" to="/panda/depth_camera/depth_image/filtered/points" />
 </node>
-
-<!-- Map standalone octomap into moveit planning scene -->
-<!-- Now done by octomap_helper / listener, to be integrated in launch file
-<node pkg="enhanced_sim" name="planningSceneUpdater" type="planningSceneUpdater.py" output="screen"/>
--->
 
 <!-- Start map entropy and octomap modifier -->
 <node pkg="filter_octomap" type="octomap_alter_unknown" name="octomap_alter_unknown"/>

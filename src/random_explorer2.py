@@ -69,7 +69,7 @@ def random_walk(move_group):
 		
 					move_group.go(joint_goal, wait=True)
 					move_group.stop()
-					rospy.sleep(1.)
+					rospy.sleep(3.)
 					
 			scanned_positions.append(move_group.get_current_pose().pose.position)
 			rospy.sleep(3)
