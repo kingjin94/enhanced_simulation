@@ -8,7 +8,7 @@
 </node>
 <include file="$(find realtime_urdf_filter)/launch/realtime_urdf_filter.launch"/> <!-- start anti-self filter for camera image -->
 
-<node pkg="octomap_server" type="octomap_server_node" name="octomap_server" args="$(find filter_octomap)/maps/prefilled1cm.ot" output="screen">
+<node pkg="octomap_server" type="octomap_server_node" name="octomap_server" args="$(find filter_octomap)/maps/prefilled2cm.ot" output="screen">
 	<param name="resolution" value="0.02" />
 	
 	<!-- fixed map frame (set to 'map' if SLAM or localization running!) -->
@@ -34,7 +34,7 @@
 <!-- Start map entropy and octomap modifier -->
 <node pkg="filter_octomap" type="octomap_alter_unknown" name="octomap_alter_unknown"/>
 <node pkg="filter_octomap" type="octomap_entropy_publisher" name="octomap_entropy_publisher"/>
-<node pkg="filter_octomap" type="octomap_to_grid" name="find_table_in_octomap"/>
+<node pkg="filter_octomap" type="octomap_to_table" name="find_table_in_octomap"/>
 
 <!-- start exploration script -->
 
