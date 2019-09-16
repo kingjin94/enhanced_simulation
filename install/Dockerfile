@@ -39,12 +39,34 @@ RUN cd /home/catkin_ws/src && git clone git@github.com:kingjin94/realtime_urdf_f
 	apt-get install -y glew-utils mesa-utils python-pip && cd .. && pip install scipy scikit-image && \
 	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && catkin_make_isolated -j16"
-
+	
 # get octomap
-RUN apt-get update && apt-get install -y ros-melodic-octomap ros-melodic-octomap-mapping ros-melodic-octomap-msgs ros-melodic-octomap-ros ros-melodic-octomap-server
+RUN apt-get update && apt-get install -y ros-melodic-octomap ros-melodic-octomap-mapping ros-melodic-octomap-msgs ros-melodic-octomap-ros ros-melodic-octomap-server ros-melodic-octomap-rviz-plugins
 
 # Additional moveit stuff
 RUN apt-get install -y ros-melodic-moveit
 
+RUN cd /home/catkin_ws/src && git clone git@github.com:kingjin94/filter_octomap.git && \
+	git clone https://github.com/gt-ros-pkg/hrl-kdl.git && \
+	cd /home/catkin_ws && /bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin_make_isolated -j16 --force-cmake && \
+	/home/catkin_ws/src/filter_octomap/makeMaps.sh"
+
 # Fix /root/.panda_simulation does not exist error
 RUN mkdir /root/.panda_simulation
+
+# For display and ros source
+RUN echo "# For ROS" >> /root/.bashrc && \
+echo "source /home/catkin_ws/devel_isolated/setup.bash" >> /root/.bashrc && \
+echo "# Fix Display" >> /root/.bashrc && \
+echo "export DISPLAY=\":0\"" >> /root/.bashrc
+
+RUN git config --global user.name "Matthias Mayer" && git config --global user.email "matthias.mayer@tum.de"
+
+# Update all gits make them
+RUN sh -c "cd /home/catkin_ws/src && find . -mindepth 1 -maxdepth 1 -type d -print -exec git -C {} pull \;" && \
+	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin_make_isolated -j16 --force-cmake"
+
+# Fix "[REST.cc:205] Error in REST request" with https://bitbucket.org/osrf/gazebo/issues/2607/error-restcc-205-during-startup-gazebo
+# RUN cd /root/.ignition/fuel/ && sed -i -e 's/url: https:\/\/api.ignitionfuel.org/url: https:\/\/api.ignitionrobotics.org/g' config.yaml
