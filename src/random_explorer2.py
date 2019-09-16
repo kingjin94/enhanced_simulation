@@ -69,10 +69,10 @@ def random_walk(move_group):
 		
 					move_group.go(joint_goal, wait=True)
 					move_group.stop()
-					rospy.sleep(3.)
+					rospy.sleep(1.)
 					
 			scanned_positions.append(move_group.get_current_pose().pose.position)
-			rospy.sleep(3)
+			rospy.sleep(1.)
 		else:
 			print("Was here before")
 		
@@ -103,7 +103,7 @@ def random_walk(move_group):
 			print("Path length: {}; Exec time: {} s".format(len(plan.joint_trajectory.points), exec_time))
 			if plan:
 				print("Valid plan found")
-				if not (0.1 < exec_time < 6.0) \
+				if not (0.1 < exec_time < 10.0) \
 					or not (1 < len(plan.joint_trajectory.points) < 100):
 					print("To long")
 					num_replan += 1
