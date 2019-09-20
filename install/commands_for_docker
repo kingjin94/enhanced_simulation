@@ -14,3 +14,6 @@ sudo docker stop panda_sim0
 
 # Clean up docker
 sudo docker system prune
+
+# N.B.: May need to change $DISPLAY variable such that same as host
+export DISPLAY=":0"
