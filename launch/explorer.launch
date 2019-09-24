@@ -32,7 +32,7 @@
 </node>
 
 <!-- Start map entropy and octomap modifier -->
-<node pkg="filter_octomap" type="octomap_alter_unknown" name="octomap_alter_unknown"/>
+<node pkg="filter_octomap" type="planningSceneUpdate_entropyCalc" name="planningSceneUpdate_entropyCalc"/>
 <node pkg="filter_octomap" type="octomap_to_table" name="find_table_in_octomap"/>
 
 <!-- start exploration script -->
