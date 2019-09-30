@@ -27,8 +27,7 @@ from enhanced_sim.msg import CollisionState
 from gazebo_msgs.msg import ContactsState
 
 class tableRefiner:
-	def __init__(self, node_name='touch_table', group_name = "panda_arm" ):
-		rospy.init_node(node_name, anonymous=True)
+	def __init__(self,  group_name = "panda_arm" ):
 		moveit_commander.roscpp_initialize(sys.argv)
 		self.robot = moveit_commander.RobotCommander()
 
@@ -287,6 +286,7 @@ class tableRefiner:
 		self.fit_table()
 
 if __name__ == '__main__':
+	rospy.init_node('touch_table', anonymous=True)
 	refiner = tableRefiner()
 
 	try:

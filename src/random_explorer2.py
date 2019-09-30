@@ -11,7 +11,7 @@ from tf.transformations import random_quaternion, euler_from_quaternion, quatern
 import numpy as np
 import random
 from filter_octomap.msg import table
-import touchTable
+import touchTable2
 
 # For initial move
 import actionlib
@@ -205,7 +205,8 @@ move_group.set_max_acceleration_scaling_factor(0.1)
 try:
 	print("Start exploring")
 	random_walk(move_group, robot)
-	touchTable.touch_and_refine_table(robot, scene, move_group)
+	refiner = touchTable2.tableRefiner()
+	refiner.touch_and_refine_table()
 except KeyboardInterrupt:
 	rospy.loginfo("random_explorer shutting down")
 
