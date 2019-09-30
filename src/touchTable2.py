@@ -279,7 +279,7 @@ class tableRefiner:
 		new_table.normal.x = n[0]
 		new_table.normal.y = n[1]
 		new_table.normal.z = n[2]
-		new_table.max.z = touch_pts_mean[2,:]
+		new_table.max.z = touch_pts_mean[2,:] - 0.5 # Offset between world in gazebo and in ros
 		new_table.header.stamp = rospy.Time.now()
 		
 		print(new_table)
