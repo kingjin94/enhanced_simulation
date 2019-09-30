@@ -28,6 +28,10 @@ from gazebo_msgs.msg import ContactsState
 
 class tableRefiner:
 	def __init__(self,  group_name = "panda_arm" ):
+		# Publisher for refined table
+		self.table_publisher = rospy.Publisher("/octomap_new/table_touched", table, queue_size=1, latch=True)
+		
+		# Moveit init
 		moveit_commander.roscpp_initialize(sys.argv)
 		self.robot = moveit_commander.RobotCommander()
 
@@ -37,10 +41,11 @@ class tableRefiner:
 		self.move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
 		self.move_group.set_max_acceleration_scaling_factor(0.05)
 		
+		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()
 		self.kdl_kin = KDLKinematics(self.urdf_robot, self.urdf_robot.links[1].name, self.urdf_robot.links[8].name)
-
 		
+		# Start working
 		self.go_home()
 		
 		print("Waiting for table message ...")
@@ -59,7 +64,6 @@ class tableRefiner:
 				print("Waiting for arrival")
 				new = False
 
-			
 	def go_to_q(self, q, dt=1., wait=True):
 		q = np.asarray(q)
 		client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
@@ -270,6 +274,16 @@ class tableRefiner:
 		n = np.asarray((xy*yz - xz*yy,xy*xz - yz*xx,det_z))
 		n = n/np.linalg.norm(n)
 		print("Normal of touch surface: {}".format(n))
+		
+		new_table = deepcopy(self.table_msg)
+		new_table.normal.x = n[0]
+		new_table.normal.y = n[1]
+		new_table.normal.z = n[2]
+		new_table.max.z = touch_pts_mean[2,:]
+		new_table.header.stamp = rospy.Time.now()
+		
+		print(new_table)
+		self.table_publisher.publish(new_table)
 	
 	def touch_and_refine_table(self, touchPts=10):
 		self.go_home()
@@ -290,6 +304,7 @@ if __name__ == '__main__':
 	refiner = tableRefiner()
 
 	try:
-		refiner.touch_and_refine_table()
+		refiner.touch_and_refine_table(touchPts=2)
+		rospy.spin()
 	except KeyboardInterrupt:
 		print("Shutting down")
