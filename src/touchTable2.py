@@ -38,6 +38,10 @@ class tableRefiner:
 		self.move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
 		self.move_group.set_max_acceleration_scaling_factor(0.05)
 		
+		self.urdf_robot = URDF.from_parameter_server()
+		self.kdl_kin = KDLKinematics(self.urdf_robot, self.urdf_robot.links[1].name, self.urdf_robot.links[8].name)
+
+		
 		self.go_home()
 		
 		print("Waiting for table message ...")
@@ -57,7 +61,7 @@ class tableRefiner:
 				new = False
 
 			
-	def go_to_q(self, q, dt=1.):
+	def go_to_q(self, q, dt=1., wait=True):
 		q = np.asarray(q)
 		client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
 		#print("Waiting for action server ...")
@@ -73,7 +77,8 @@ class tableRefiner:
 		goal.trajectory = joint_traj
 		joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
 		client.send_goal_and_wait(goal)
-		self.wait_for_joint_arrival(q)
+		if wait:
+			self.wait_for_joint_arrival(q)
 		
 	def go_home(self):
 		print("Homing ...")
@@ -191,20 +196,95 @@ class tableRefiner:
 				continue
 			else:
 				print("Arrived")
-				break
+				return True
+				
+		return False
+		
+	def p_step(self, pos_d, ori_d):
+		""" Make a step proportional to an error """
+		pos_e = pos_d - self.get_current_position()
+		rot_e = ori_d - self.get_current_rotation()
+		
+		rot_e = np.asarray(tf.transformations.euler_from_quaternion(rot_e)) / 300
+		e = np.concatenate([pos_e, rot_e])
+		print("Error: {}".format(e))
+		
+		q = np.asarray(self.robot.get_current_state().joint_state.position[:7])
+		J = np.asarray(self.kdl_kin.jacobian(q))
+		
+		q_new = q+J.T.dot(e)
+		self.go_to_q(q_new, wait=False)
 		
 	def approach_table_straight(self):
-		pass
+		""" Approaches the table by moving along the long axis of the probing tool till a collision is sensed """
+		pos_to_keep = self.get_current_position()
+		ori_to_keep = self.get_current_rotation()
+		while True:
+			pos_to_keep[2] -= 0.01
+			self.p_step(pos_to_keep, ori_to_keep)
+			touchSensorMsg = rospy.wait_for_message("/panda/bumper/colliding", CollisionState)
+			if touchSensorMsg.colliding:
+				if '/panda/bumper/panda_probe_ball' in touchSensorMsg.collidingLinks: # Collided with sensing part -> wait for details
+					ballSensorMsg = ContactsState()
+					while ballSensorMsg.states == []:
+						ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
+					print("Touched table with state: \n{}".format(ballSensorMsg))
+					return ballSensorMsg
+				else: # Collided with wrong part -> ignore this collision in later evaluation
+					return None
 	
-	def touch_and_refine_table(self):
+	def depart_from_table(self):
+		""" More or less safely moves away from table """
+		pos_to_keep = self.get_current_position()
+		ori_to_keep = self.get_current_rotation()
+		
+		for i in range(5):
+			pos_to_keep[2] += 0.03
+			self.p_step(pos_to_keep, ori_to_keep)
+		
+	def fit_table(self):
+		# fit table surface with new information from the touched points and display info
+		#print("Touched surface at the following poses:")
+		#print(touchPoses)
+		print("Improved surface estimate:")
+		touch_pts = np.zeros((3,len(self.touched_points)))
+		touch_pts[0,:] = [self.touched_points[i].states[0].contact_positions[0].x for i in range(len(self.touched_points))]
+		touch_pts[1,:] = [self.touched_points[i].states[0].contact_positions[0].y for i in range(len(self.touched_points))]
+		touch_pts[2,:] = [self.touched_points[i].states[0].contact_positions[0].z for i in range(len(self.touched_points))]
+
+		print("Height: {}".format(np.mean(touch_pts[2,:])))
+		# Fit plane - https://www.ilikebigbits.com/2015_03_04_plane_from_points.html
+		touch_pts_mean = np.mean(touch_pts, axis=1, keepdims=True)
+		print("Mean of touched points: {}".format(touch_pts_mean))
+		touch_pts = touch_pts - touch_pts_mean # Make mean free
+		xx = np.sum(touch_pts[0,:]**2)
+		yy = np.sum(touch_pts[1,:]**2)
+		zz = np.sum(touch_pts[2,:]**2)
+		xy = np.sum(touch_pts[0,:]*touch_pts[1,:])
+		xz = np.sum(touch_pts[0,:]*touch_pts[2,:])
+		yz = np.sum(touch_pts[1,:]*touch_pts[2,:])
+
+		det_x = yy*zz - yz**2
+		det_y = xx*zz - xz**2
+		det_z = xx*yy - xy**2
+
+		n = np.asarray((xy*yz - xz*yy,xy*xz - yz*xx,det_z))
+		n = n/np.linalg.norm(n)
+		print("Normal of touch surface: {}".format(n))
+	
+	def touch_and_refine_table(self, touchPts=10):
 		self.go_home()
 		
-		while(len(self.touched_points) < 10):
+		while(len(self.touched_points) < touchPts):
 			self.go_home()
 			arrived_over_probe_point = self.go_to_random_point_over_table()
 			if not arrived_over_probe_point:
 				continue
-			self.approach_table_straight()
+			touch_point = self.approach_table_straight()
+			if touch_point:
+				self.touched_points.append(touch_point)
+				self.depart_from_table()
+		self.fit_table()
 
 if __name__ == '__main__':
 	refiner = tableRefiner()
