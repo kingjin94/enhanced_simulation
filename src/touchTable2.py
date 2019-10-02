@@ -191,6 +191,23 @@ class TactileRefiner(object):
 		
 	def rotate_quart_around_z(self, quart, yaw_angle=0.1):
 		return self.rotate_quart_around_axis(quart, (0,0,1), yaw_angle)
+	
+	def try_to_go_to_pose(self, pose_goal, arrival_test= lambda _1,_2: True, modifier = lambda _1,_2: _2, timeout = 100):
+		""" Tries to go to a random position over the table; gives up after timeout planning attempts; return True if close to the desired point """
+		print("Trying to reach")
+		print(pose_goal)
+		while timeout > 0:
+			self.go_to_pose(pose_goal)
+			if arrival_test(self, pose_goal):
+				print("Arrived")
+				return True
+			else:
+				timeout -= 1
+				pose_goal = modifier(self, pose_goal)
+				print("Try new pose: {}".format(pose_goal))
+				continue
+				
+		return False
 		
 class TableRefiner(TactileRefiner):
 	def __init__(self, group_name = "panda_arm"):
@@ -230,26 +247,24 @@ class TableRefiner(TactileRefiner):
 		
 	def go_to_random_point_over_table(self, timeout = 100):
 		""" Tries to go to a random position over the table; gives up after timeout planning attempts; return True if close to the desired point """
-		goal_pose = self.sample_pose_over_table()
-		print("Trying to reach")
-		print(goal_pose)
-		while timeout > 0:
-			self.go_to_pose(goal_pose)
+		def arrived_over_table(self, pose_goal):
 			(roll, pitch, yaw) = tf.transformations.euler_from_quaternion(self.get_current_rotation())
 			while roll < 0:
 				roll += 2*math.pi # need roll in 0 to 2 pi
-			if not self.over_table() or self.get_distance_to_position(goal_pose.position) > 0.1 or \
-				roll < 2.967 or roll > 3.316 or abs(pitch) > 0.175:  # x about downwards <=> roll = 180+-10, pitch = 0+-10
-				print("Errors: dist: {}, rpy: {}".format(self.get_distance_to_position(goal_pose.position), (roll, pitch, yaw)))
-				timeout -= 1
-				goal_pose.orientation = self.rotate_quart_around_z(goal_pose.orientation, yaw_angle=random.uniform(0, 3.141))
-				print("Try new ori: {}".format(goal_pose.orientation))
-				continue
-			else:
-				print("Arrived")
-				return True
 				
-		return False
+			print("Errors: dist: {}, rpy: {}".format(self.get_distance_to_position(pose_goal.position), (roll, pitch, yaw)))
+			return (self.over_table() and \
+				self.get_distance_to_position(pose_goal.position) < 0.1 and \
+				roll > 2.967 and roll < 3.316 and \
+				abs(pitch) < 0.175) # x about downwards <=> roll = 180+-10 pitch = 0+-10
+		
+		def modify_over_can(self, pose_goal):
+			pose_goal.orientation = self.rotate_quart_around_z(pose_goal.orientation, yaw_angle=random.uniform(0, 3.141))
+			return pose_goal
+		
+		
+		goal_pose = self.sample_pose_over_table()
+		return self.try_to_go_to_pose(goal_pose, arrival_test=arrived_over_table, modifier=modify_over_can)
 		
 	def approach_table_straight(self):
 		""" Approaches the table by moving along the long axis of the probing tool till a collision is sensed """
