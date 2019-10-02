@@ -190,6 +190,7 @@ class TactileRefiner(object):
 		return self.numpy_to_orientation(tf.transformations.quaternion_multiply(quart, turn))
 		
 	def rotate_quart_around_z(self, quart, yaw_angle=0.1):
+		""" rotates pose encoded by quart by yaw_angle about its z axis """
 		return self.rotate_quart_around_axis(quart, (0,0,1), yaw_angle)
 	
 	def try_to_go_to_pose(self, pose_goal, arrival_test= lambda _1,_2: True, modifier = lambda _1,_2: _2, timeout = 100):
@@ -209,6 +210,14 @@ class TactileRefiner(object):
 				
 		return False
 		
+	def pose_pub(self, name, pose):
+		pose_pub = rospy.Publisher(name, geometry_msgs.msg.PoseStamped, queue_size=1, latch=True)
+		pose_goal_st = geometry_msgs.msg.PoseStamped()
+		pose_goal_st.pose = pose
+		pose_goal_st.header.stamp = rospy.Time.now()
+		pose_goal_st.header.frame_id = "world"
+		pose_pub.publish(pose_goal_st)
+
 class TableRefiner(TactileRefiner):
 	def __init__(self, group_name = "panda_arm"):
 		super(TableRefiner, self).__init__(group_name)
