@@ -123,7 +123,6 @@ class TactileRefiner(object):
 		exec_time = plan.joint_trajectory.points[-1].time_from_start.to_sec()
 		if fraction < 0.2 or not (exec_time < 10.0) \
 			or not (1 < len(plan.joint_trajectory.points) < 100):
-			pose.orientation = self.rotate_quart_around_z(pose.orientation, yaw=random.uniform(0, 3.141))
 			return False
 		try:
 			ret = self.move_group.execute(plan, wait=False) # Move to goal
@@ -154,7 +153,45 @@ class TactileRefiner(object):
 			q_new = q+J.T.dot(e)
 			self.go_to_q(q_new, wait=False)
 	
+	def go_straight_till_coll(self, x_step=0, y_step=0, z_step=0):
+		""" Moves along step direction till a collision is sensed; if probe_ball collided returns collisionstate else None """
+		pos_to_keep = self.get_current_position()
+		ori_to_keep = self.get_current_rotation()
+		while True:
+			pos_to_keep[0] += x_step
+			pos_to_keep[1] += y_step
+			pos_to_keep[2] += z_step
+			self.p_step(pos_to_keep, ori_to_keep)
+			touchSensorMsg = rospy.wait_for_message("/panda/bumper/colliding", CollisionState)
+			if touchSensorMsg.colliding:
+				if '/panda/bumper/panda_probe_ball' in touchSensorMsg.collidingLinks: # Collided with sensing part -> wait for details
+					ballSensorMsg = ContactsState()
+					while ballSensorMsg.states == []:
+						ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
+					print("Touched with state: \n{}".format(ballSensorMsg))
+					return ballSensorMsg
+				else: # Collided with wrong part -> ignore this collision in later evaluation
+					return None
 
+	def n_steps_dir(self, n, x_step=0, y_step=0, z_step=0):
+		pos_to_keep = self.get_current_position()
+		ori_to_keep = self.get_current_rotation()
+		
+		for i in range(5):
+			pos_to_keep[0] += x_step
+			pos_to_keep[1] += y_step
+			pos_to_keep[2] += z_step
+			self.p_step(pos_to_keep, ori_to_keep)
+			
+	def rotate_quart_around_axis(self, quart, axis, angle):
+		turn = tf.transformations.quaternion_about_axis(angle, axis)
+		quart = self.orientation_msg_to_numpy(quart)
+		
+		return self.numpy_to_orientation(tf.transformations.quaternion_multiply(quart, turn))
+		
+	def rotate_quart_around_z(self, quart, yaw_angle=0.1):
+		return self.rotate_quart_around_axis(quart, (0,0,1), yaw_angle)
+		
 class TableRefiner(TactileRefiner):
 	def __init__(self, group_name = "panda_arm"):
 		super(TableRefiner, self).__init__(group_name)
@@ -185,20 +222,14 @@ class TableRefiner(TactileRefiner):
 			if pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2 < self.max_reach**2:
 				return pose_goal
 		
-	def rotate_quart_around_z(self, quart, yaw=0.1):
-		turn = tf.transformations.quaternion_about_axis(yaw, (0,0,1))
-		quart = self.orientation_msg_to_numpy(quart)
-		
-		return self.numpy_to_orientation(tf.transformations.quaternion_multiply(quart, turn))
-		
 	def over_table(self):
 		pos = self.get_current_position()
 		
 		return (self.table_msg.min.x+0.05 < pos[0] < self.table_msg.max.x-0.05) \
 			and (self.table_msg.min.y+0.05 < pos[1] < self.table_msg.max.y-0.05)
 		
-	def go_to_random_point_over_table(self, call_count=0):
-		timeout = 100
+	def go_to_random_point_over_table(self, timeout = 100):
+		""" Tries to go to a random position over the table; gives up after timeout planning attempts; return True if close to the desired point """
 		goal_pose = self.sample_pose_over_table()
 		print("Trying to reach")
 		print(goal_pose)
@@ -211,6 +242,7 @@ class TableRefiner(TactileRefiner):
 				roll < 2.967 or roll > 3.316 or abs(pitch) > 0.175:  # x about downwards <=> roll = 180+-10, pitch = 0+-10
 				print("Errors: dist: {}, rpy: {}".format(self.get_distance_to_position(goal_pose.position), (roll, pitch, yaw)))
 				timeout -= 1
+				goal_pose.orientation = self.rotate_quart_around_z(goal_pose.orientation, yaw_angle=random.uniform(0, 3.141))
 				print("Try new ori: {}".format(goal_pose.orientation))
 				continue
 			else:
@@ -221,30 +253,11 @@ class TableRefiner(TactileRefiner):
 		
 	def approach_table_straight(self):
 		""" Approaches the table by moving along the long axis of the probing tool till a collision is sensed """
-		pos_to_keep = self.get_current_position()
-		ori_to_keep = self.get_current_rotation()
-		while True:
-			pos_to_keep[2] -= 0.01
-			self.p_step(pos_to_keep, ori_to_keep)
-			touchSensorMsg = rospy.wait_for_message("/panda/bumper/colliding", CollisionState)
-			if touchSensorMsg.colliding:
-				if '/panda/bumper/panda_probe_ball' in touchSensorMsg.collidingLinks: # Collided with sensing part -> wait for details
-					ballSensorMsg = ContactsState()
-					while ballSensorMsg.states == []:
-						ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
-					print("Touched table with state: \n{}".format(ballSensorMsg))
-					return ballSensorMsg
-				else: # Collided with wrong part -> ignore this collision in later evaluation
-					return None
-	
+		return self.go_straight_till_coll(z_step=-0.01)
+
 	def depart_from_table(self):
 		""" More or less safely moves away from table """
-		pos_to_keep = self.get_current_position()
-		ori_to_keep = self.get_current_rotation()
-		
-		for i in range(5):
-			pos_to_keep[2] += 0.03
-			self.p_step(pos_to_keep, ori_to_keep)
+		self.n_steps_dir(5, z_step=0.03)
 		
 	def fit_table(self):
 		# fit table surface with new information from the touched points and display info
@@ -274,7 +287,7 @@ class TableRefiner(TactileRefiner):
 
 		n = np.asarray((xy*yz - xz*yy,xy*xz - yz*xx,det_z))
 		n = n/np.linalg.norm(n)
-		if(n[2] < 0):
+		if(n[2] < 0): # Table always pointing up
 			n = -1.*n
 		print("Normal of touch surface: {}".format(n))
 		
