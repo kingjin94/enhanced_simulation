@@ -40,7 +40,7 @@ class TactileRefiner(object):
 		
 		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()
-		self.kdl_kin = KDLKinematics(self.urdf_robot, self.urdf_robot.links[1].name, self.urdf_robot.links[8].name)
+		self.kdl_kin = KDLKinematics(self.urdf_robot, self.urdf_robot.links[1].name, self.urdf_robot.links[9].name)
 		
 		# Start working
 		self.go_home()
@@ -138,20 +138,21 @@ class TactileRefiner(object):
 			print(e)
 			return False
 	
-	def p_step(self, pos_d, ori_d):
-			""" Make a step proportional to an error """
-			pos_e = pos_d - self.get_current_position()
-			rot_e = ori_d - self.get_current_rotation()
-			
-			rot_e = np.asarray(tf.transformations.euler_from_quaternion(rot_e)) / 300
-			e = np.concatenate([pos_e, rot_e])
-			print("Error: {}".format(e))
-			
-			q = np.asarray(self.robot.get_current_state().joint_state.position[:7])
-			J = np.asarray(self.kdl_kin.jacobian(q))
-			
-			q_new = q+J.T.dot(e)
-			self.go_to_q(q_new, wait=False)
+	def p_step(self, pos_d=None, ori_d=None, pose_d=None):
+		""" Go to desired pos and ori with single step ik (should be close to current pos) """
+		assert (pos_d is None and ori_d is None) != (pose_d is None), "Either pose or pos and ori"
+		if pose_d is None:
+			pose_d = geometry_msgs.msg.Pose()
+			pose_d.position = self.numpy_to_position(pos_d)
+			pose_d.orientation = self.numpy_to_orientation(ori_d)
+		
+		q = np.asarray(self.robot.get_current_state().joint_state.position[:7])
+		q_ik = self.kdl_kin.inverse(pose_d, q)
+		
+		if q_ik is not None:
+			self.go_to_q(q_ik, wait=False)
+		else:
+			print("IK not successful")
 	
 	def go_straight_till_coll(self, x_step=0, y_step=0, z_step=0):
 		""" Moves along step direction till a collision is sensed; if probe_ball collided returns collisionstate else None """
@@ -173,11 +174,11 @@ class TactileRefiner(object):
 				else: # Collided with wrong part -> ignore this collision in later evaluation
 					return None
 
-	def n_steps_dir(self, n, x_step=0, y_step=0, z_step=0):
+	def n_steps_dir(self, n, x_step=0., y_step=0., z_step=0.):
 		pos_to_keep = self.get_current_position()
 		ori_to_keep = self.get_current_rotation()
 		
-		for i in range(5):
+		for i in range(n):
 			pos_to_keep[0] += x_step
 			pos_to_keep[1] += y_step
 			pos_to_keep[2] += z_step
