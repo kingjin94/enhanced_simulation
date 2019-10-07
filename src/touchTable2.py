@@ -345,7 +345,7 @@ if __name__ == '__main__':
 	refiner = TableRefiner()
 
 	try:
-		refiner.touch_and_refine_table(touchPts=2)
+		refiner.touch_and_refine_table(touchPts=3) # 3 is min for normal fit ...
 		rospy.spin()
 	except KeyboardInterrupt:
 		print("Shutting down")
