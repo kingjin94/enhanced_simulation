@@ -80,7 +80,7 @@ class CanRefiner(touchTable2.TactileRefiner):
 				coll_state = self.go_straight_till_coll(z_step=-0.01)
 				self.n_steps_dir(5, z_step=0.03) # retreat
 				if coll_state:
-					self.touched_points_mantle.append(coll_state)
+					self.touched_points_top.append(coll_state)
 				else:
 					print("Collided with not sensing part")
 					continue # Collided with other part -> no usable info gained so retry
@@ -140,7 +140,7 @@ class CanRefiner(touchTable2.TactileRefiner):
 			self.pose_pub("/debug/can_mantle/pose_altered", pose_goal)
 			return pose_goal
 		
-		while len(self.touched_points_top) < touch_pts and not rospy.is_shutdown():
+		while len(self.touched_points_mantle) < touch_pts and not rospy.is_shutdown():
 			self.go_home()
 			# Sample random point on top
 			pose_goal = self.sample_point_on_mantle()
@@ -161,15 +161,17 @@ class CanRefiner(touchTable2.TactileRefiner):
 				continue
 	
 	def fit_can_and_publish(self):
+		# TODO
 		new_can = can()
 		# Height from np.mean(self.touched_points_top.position.z) - self.table_msg.max.z
 		# Centroid.z = Height/2 + self.table_msg.max.z
 		# Radius & centroid x/y from least squares fit of circle to x,y of points on mantle
 		
 	def touch_and_refine_can(self):
-		#self.touch_and_refine_can_top()
+		#self.touch_and_refine_can_top() # TODO: needs lower can top
 		self.touch_and_refine_can_mantle()
 		
+		# self.fit_can_and_publish()
 
 if __name__ == '__main__':
 	rospy.init_node('touch_can', anonymous=True)
