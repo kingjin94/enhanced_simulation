@@ -5,6 +5,7 @@ import geometry_msgs
 import random
 import tf
 import math
+from scipy import optimize
 
 import touchTable2
 
@@ -166,12 +167,44 @@ class CanRefiner(touchTable2.TactileRefiner):
 		# Height from np.mean(self.touched_points_top.position.z) - self.table_msg.max.z
 		# Centroid.z = Height/2 + self.table_msg.max.z
 		# Radius & centroid x/y from least squares fit of circle to x,y of points on mantle
+		z_can_top = np.mean([coll.states[0].contact_positions[0].z - 0.5 for coll in self.touched_points_top])  # Offset gazebo <-> ros world
+		new_can.height = z_can_top - self.table_msg.max.z
+		new_can.centroid_position.z = self.table_msg.max.z + new_can.height/2
+		
+		# find radius and x/y via circle fit
+		def calc_R(x,y, xc, yc):
+			""" calculate the distance of each 2D points from the center (xc, yc) """
+			return np.sqrt((x-xc)**2 + (y-yc)**2)
+
+		def Error(c, x, y):
+			""" calculate the algebraic distance between the data points and the mean circle centered at c=(xc, yc) """
+			Ri = calc_R(x, y, *c)
+			return Ri - Ri.mean()
+		
+		x_i = self.can_msg.centroid_position.x
+		y_i = self.can_msg.centroid_position.y
+		x_mantle = np.asarray([coll.states[0].contact_positions[0].x for coll in self.touched_points_mantle])
+		y_mantle = np.asarray([coll.states[0].contact_positions[0].y for coll in self.touched_points_mantle])
+
+		center, ier = optimize.leastsq(Error, (x_i, y_i), args=(x_mantle,y_mantle))
+		new_can.centroid_position.x = center[0]
+		new_can.centroid_position.y = center[1]
+		new_can.radius = calc_R(x_mantle, y_mantle, *center).mean()
+		
+		new_can.score = self.can_msg.score * 10 # Way better estimate as touched ...
+		new_cans = cans()
+		new_cans.cans.append(new_can)
+		new_cans.header = self.cans_msg.header
+		new_cans.count = 1
+		new_cans.header.stamp = rospy.Time.now()
+		
+		self.can_publisher.publish(new_cans)
 		
 	def touch_and_refine_can(self):
-		#self.touch_and_refine_can_top() # TODO: needs lower can top
+		self.touch_and_refine_can_top() 
 		self.touch_and_refine_can_mantle()
 		
-		# self.fit_can_and_publish()
+		self.fit_can_and_publish()
 
 if __name__ == '__main__':
 	rospy.init_node('touch_can', anonymous=True)
