@@ -4,14 +4,10 @@ Panels:
     Name: Displays
     Property Tree Widget:
       Expanded:
-        - /MarkerArray1
-        - /PlanningScene1
         - /PlanningScene1/Scene Geometry1
         - /PlanningScene1/Scene Robot1
-        - /MotionPlanning1
         - /MotionPlanning1/Planning Request1
-        - /Filtered Seg1
-        - /PointCloud21
+        - /Table Marker1/Namespaces1
       Splitter Ratio: 0.3568345308303833
     Tree Height: 880
   - Class: rviz/Help
@@ -331,7 +327,7 @@ Visualization Manager:
       Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: PointCloud2
+      Name: RGB Point Cloud
       Position Transformer: XYZ
       Queue Size: 10
       Selectable: true
@@ -367,6 +363,22 @@ Visualization Manager:
       Voxel Alpha: 1
       Voxel Coloring: Cell Color
       Voxel Rendering: Occupied Voxels
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /debug/table_marker
+      Name: Table Marker
+      Namespaces:
+        my_namespace: true
+      Queue Size: 100
+      Value: true
+    - Class: rviz/Marker
+      Enabled: true
+      Marker Topic: /debug/can_marker
+      Name: Table Marker
+      Namespaces:
+        my_namespace: true
+      Queue Size: 100
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -384,25 +396,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 4.326212406158447
+      Distance: 2.520228624343872
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -0.11871421337127686
-        Y: -0.5152701735496521
-        Z: 1.1771923027481535e-6
+        X: -0.3457975387573242
+        Y: 0.4687269330024719
+        Z: 1.773238636815222e-6
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.8597965836524963
+      Pitch: 0.7147964239120483
       Target Frame: panda_link0
       Value: XYOrbit (rviz)
-      Yaw: 3.8717823028564453
+      Yaw: 2.646777868270874
     Saved: ~
 Window Geometry:
   Depth Filter Mask:
