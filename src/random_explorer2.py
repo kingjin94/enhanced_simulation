@@ -12,6 +12,7 @@ import numpy as np
 import random
 from filter_octomap.msg import table
 import touchTable2
+import touchCan
 
 # For initial move
 import actionlib
@@ -205,8 +206,20 @@ move_group.set_max_acceleration_scaling_factor(0.1)
 try:
 	print("Start exploring")
 	random_walk(move_group, robot)
-	refiner = touchTable2.tableRefiner()
-	refiner.touch_and_refine_table()
+	print("Visual done")
+	# Kill all vision nodes; make sure important topics are latched, esp. table
+	
+	# Refine table
+	refinerTable = touchTable2.TableRefiner()
+	refinerTable.touch_and_refine_table()
+	print("Table done")
+	
+	# Refine cans
+	refinerCans = touchCan.CanRefiner()
+	refinerCans.touch_and_refine_can()
+	print("Can done")
+	
+	rospy.spin() # Keep all the messages alive
 except KeyboardInterrupt:
 	rospy.loginfo("random_explorer shutting down")
 
