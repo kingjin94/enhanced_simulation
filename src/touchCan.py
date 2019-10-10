@@ -171,7 +171,7 @@ class CanRefiner(touchTable2.TactileRefiner):
 		new_can.height = z_can_top - self.table_msg.max.z
 		new_can.centroid_position.z = self.table_msg.max.z + new_can.height/2
 		
-		# find radius and x/y via circle fit
+		# find radius and x/y via circle fit -- https://scipy-cookbook.readthedocs.io/items/Least_Squares_Circle.html
 		def calc_R(x,y, xc, yc):
 			""" calculate the distance of each 2D points from the center (xc, yc) """
 			return np.sqrt((x-xc)**2 + (y-yc)**2)
