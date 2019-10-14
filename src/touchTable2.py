@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from filter_octomap.msg import table
 import numpy as np
 import random
@@ -37,6 +39,8 @@ class TactileRefiner(object):
 		self.move_group = moveit_commander.MoveGroupCommander(group_name)
 		self.move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
 		self.move_group.set_max_acceleration_scaling_factor(0.05)
+		self.move_group.set_num_planning_attempts(10)
+		self.move_group.set_planning_time(2)
 		
 		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()

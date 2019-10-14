@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from filter_octomap.msg import table, cans, can
 import rospy
 import numpy as np
