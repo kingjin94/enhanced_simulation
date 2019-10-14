@@ -156,7 +156,9 @@ class CanRefiner(touchTable2.TactileRefiner):
 				continue
 	
 	def fit_can_and_publish(self):
-		# TODO
+		assert len(self.touched_points_top) > 0, "To few points on top to refine, need atleast 1"
+		assert len(self.touched_points_mantle) >= 3, "To few points on mantle, need atleast 3 have {}".format(len(self.touched_points_mantle))
+			
 		new_can = can()
 		# Height from np.mean(self.touched_points_top.position.z) - self.table_msg.max.z
 		# Centroid.z = Height/2 + self.table_msg.max.z
