@@ -11,7 +11,8 @@ from tf.transformations import random_quaternion, euler_from_quaternion, quatern
 import numpy as np
 import random
 from filter_octomap.msg import table
-import touchTable
+import touchTable2
+import touchCan
 
 # For initial move
 import actionlib
@@ -32,8 +33,8 @@ def force_home():
 	joint_traj = JointTrajectory()
 	joint_traj.joint_names = ["panda_joint1", "panda_joint2", "panda_joint3", "panda_joint4", "panda_joint5", "panda_joint6", "panda_joint7"]
 	point1 = JointTrajectoryPoint()
-	#point1.positions = [0.33877080806309046, -0.3623406480725775, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795, 0.06015034910227879]
-	point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
+	# point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
+	point1.positions = [0.0, -1.5, 0.0, -1.8702679826187074, 0, 2.873639813867795 - 1.51, 0.06015034910227879]
 	point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
 	point1.time_from_start = rospy.Duration(2.)
 	joint_traj.points = [point1]
@@ -50,62 +51,109 @@ def distance_pos_list(prev_positions, pos):
 	else:
 		return dist
 		
+def look_around(move_group, robot, scanned_positions):
+	move_group.stop()
+	move_group.set_max_velocity_scaling_factor(0.5) # Allow 50 % of the set maximum joint velocities, are moving only short distances
+	move_group.set_max_acceleration_scaling_factor(0.5)
+	failures = 0
+	print("Looking around")
+	joint_goal = np.asarray(robot.get_current_state().joint_state.position[:7])
+	for c, j4 in enumerate(np.linspace(-170+10,170-10,num=7)):
+		for d, j5 in enumerate((c%2)*np.linspace(-5+15,219-10,num=7) + ((c+1)%2)*np.linspace(219-10,-5+10,num=7)):
+			joint_goal[4] = j4 / 180 * pi
+			joint_goal[5] = j5 / 180 * pi
+			joint_goal[6] = pi/4
+			
+			try: 
+				move_group.go(joint_goal, wait=True)
+			except Exception as e:
+				failures += 1
+				print("Impossible orientation")
+				print(e)
+			move_group.stop()
+			rospy.sleep(1.)
+			
+	if failures < 10:
+		scanned_positions.append(move_group.get_current_pose().pose.position)
+	move_group.stop()
+	rospy.sleep(1.)
+	
+	move_group.set_max_velocity_scaling_factor(0.2) # Allow 10 % of the set maximum joint velocities
+	move_group.set_max_acceleration_scaling_factor(0.1)
+	
+def get_new_random_direction():
+	position = move_group.get_current_pose().pose.position
+	# move_direction = np.random.uniform(low=-1., high=1., size=(3))
+	move_direction = np.zeros((3))
+	# Sample such that tendency to move to center
+	move_direction[0] = np.random.uniform(low=-0.5*(position.x+1.), high=.5*abs(position.x-1.), size=(1))
+	move_direction[1] = np.random.uniform(low=-0.5*(position.y+1.), high=.5*abs(position.y-1.), size=(1))
+	move_direction[2] = np.random.uniform(low=-0.5*(position.z+1.), high=.5*abs(position.z-1.), size=(1))
+	
+	move_direction = move_direction / np.linalg.norm(move_direction)
+	return 0.3 * move_direction
 
 # Look around randomly
-def random_walk(move_group):
+def random_walk(move_group, robot):
 	scanned_positions = []
-	while True:
-		move_group.set_max_velocity_scaling_factor(0.5) # Allow 10 % of the set maximum joint velocities
-		move_group.set_max_acceleration_scaling_factor(0.5)
-		
+	move_direction = get_new_random_direction()
+	pose_goal = geometry_msgs.msg.Pose()
+	
+	while True:		
 		if min(distance_pos_list(scanned_positions, move_group.get_current_pose().pose.position)) > MIN_DIST_LOOKOUTS:
-			print("Looking around")
-			joint_goal = np.asarray(robot.get_current_state().joint_state.position[:7])
-			for c, j4 in enumerate(np.linspace(-170+10,170-10,num=7)):
-				for d, j5 in enumerate((c%2)*np.linspace(-5+15,219-10,num=7) + ((c+1)%2)*np.linspace(219-10,-5+10,num=7)):
-					joint_goal[4] = j4 / 180 * pi
-					joint_goal[5] = j5 / 180 * pi
-					joint_goal[6] = pi/4
-		
-					move_group.go(joint_goal, wait=True)
-					move_group.stop()
-					rospy.sleep(1.)
-					
-			scanned_positions.append(move_group.get_current_pose().pose.position)
-			rospy.sleep(1.)
+			look_around(move_group, robot, scanned_positions)
+			#print("Skipped looking around")
 		else:
 			print("Was here before")
 		
 		print("Moving to new position")
+		move_group.set_max_velocity_scaling_factor(0.2) # Allow 10 % of the set maximum joint velocities
+		move_group.set_max_acceleration_scaling_factor(0.1)
 		# Find new positions and go to them
 		num_replan = 0
 		while True:
+			move_group.stop()	
 			if num_replan > 100:
 				print("Still nothing found .. forcing home")
 				force_home()
+				num_replan = 0
+				move_direction = get_new_random_direction()
+				
 			move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
 			move_group.set_max_acceleration_scaling_factor(0.05)
-			pose_goal = geometry_msgs.msg.Pose()
-			while True: # do ... while
-				pose_goal.position.x = 1.4 * (random.random()-0.5) # -0.7 till 0.7 m
-				pose_goal.position.y = 1.4 * (random.random()-0.5) # -0.7 till 0.7 m
-				pose_goal.position.z = 1. * random.random() - 0.1 # -0.1 till 0.9 m
-				if min(distance_pos_list(scanned_positions, pose_goal.position)) > MIN_DIST_LOOKOUTS:
-					break
+			
+			pose_goal.position = move_group.get_current_pose().pose.position
+			print("I'm here:")
+			print(pose_goal.position)
+			print("Move towards:")
+			print(move_direction)
+			pose_goal.position.x = move_direction[0] + pose_goal.position.x
+			pose_goal.position.y = move_direction[1] + pose_goal.position.y
+			pose_goal.position.z = move_direction[2] + pose_goal.position.z
 					
 			ori = random_quaternion()
 			pose_goal.orientation.x = ori[0]
 			pose_goal.orientation.y = ori[1]
 			pose_goal.orientation.z = ori[2]
 			pose_goal.orientation.w = ori[3]
-			(plan, fraction) = move_group.compute_cartesian_path([pose_goal], 0.01, 0.0)
+			print("New goal:")
+			print(pose_goal.position)
+			if pose_goal.position.x**2+pose_goal.position.y**2 + pose_goal.position.z**2 > 1.:
+				move_direction = get_new_random_direction()
+				print("Goal to far out; new direction")
+				continue
+				
+			tmp_tolerance = move_group.get_goal_orientation_tolerance()
+			move_group.set_goal_orientation_tolerance(20.) # Eef orientation not important, look around anyway
+			(plan, fraction) = move_group.compute_cartesian_path([pose_goal], 0.01, 1.0)
+			move_group.set_goal_orientation_tolerance(tmp_tolerance)
 			exec_time = plan.joint_trajectory.points[-1].time_from_start.to_sec()
 			print("Path length: {}; Exec time: {} s".format(len(plan.joint_trajectory.points), exec_time))
 			if plan:
 				print("Valid plan found")
-				if not (0.1 < exec_time < 10.0) \
+				if fraction < 0.5 or not (.1 < exec_time < 10.0) \
 					or not (1 < len(plan.joint_trajectory.points) < 100):
-					print("To long")
+					print("To long / short")
 					num_replan += 1
 					continue
 				print("executing ...")
@@ -121,17 +169,21 @@ def random_walk(move_group):
 				except Exception as e:
 					print(e)
 			else:
+				move_direction = get_new_random_direction()
 				num_replan += 1
 				print("No plan found; new goal ...")			
 				
 		# evaluate if done
-		mapEntropyMsg = rospy.wait_for_message("/octomap_new/entropy", Float64)
-		tableMsg = rospy.wait_for_message("/octomap_new/table", table)
-		
-		if mapEntropyMsg.data < -0.5 and tableMsg.score > 900000:
-			print("Table found and map good enough")
-			print("Moving on to touching the table")
-			return True
+		try:
+			mapEntropyMsg = rospy.wait_for_message("/octomap_new/entropy", Float64,  timeout=2.)
+			tableMsg = rospy.wait_for_message("/octomap_new/table", table,  timeout=2.)
+			
+			if mapEntropyMsg.data < -0.5 and tableMsg.score > 900000:
+				print("Table found and map good enough")
+				print("Moving on to touching the table")
+				return True
+		except rospy.exceptions.ROSException:
+			print("No feedback on progress received")
 		
 		
 
@@ -153,8 +205,21 @@ move_group.set_max_acceleration_scaling_factor(0.1)
 
 try:
 	print("Start exploring")
-	random_walk(move_group)
-	touchTable.touch_and_refine_table(robot, scene, move_group)
+	random_walk(move_group, robot)
+	print("Visual done")
+	# Kill all vision nodes; make sure important topics are latched, esp. table
+	
+	# Refine table
+	refinerTable = touchTable2.TableRefiner()
+	refinerTable.touch_and_refine_table()
+	print("Table done")
+	
+	# Refine cans
+	refinerCans = touchCan.CanRefiner()
+	refinerCans.touch_and_refine_can()
+	print("Can done")
+	
+	rospy.spin() # Keep all the messages alive
 except KeyboardInterrupt:
 	rospy.loginfo("random_explorer shutting down")
 
