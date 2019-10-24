@@ -82,7 +82,8 @@ ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics,compat32 #added graphics for OpenGL in Gazebo etc. https://gitlab.com/nvidia/container-images/opengl/blob/ubuntu18.04/base/Dockerfile
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,graphics,compat32 
+#added graphics for OpenGL in Gazebo etc. https://gitlab.com/nvidia/container-images/opengl/blob/ubuntu18.04/base/Dockerfile
 ENV NVIDIA_REQUIRE_CUDA "cuda>=10.0 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=410,driver<411"
 
 # runtime
@@ -101,9 +102,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         cuda-command-line-tools-$CUDA_PKG_VERSION \
 cuda-libraries-dev-$CUDA_PKG_VERSION \
         cuda-minimal-build-$CUDA_PKG_VERSION \
-        libnccl-dev=$NCCL_VERSION-1+cuda10.0 \
-&& \
-    rm -rf /var/lib/apt/lists/*
+        libnccl-dev=$NCCL_VERSION-1+cuda10.0 
 
 ENV LIBRARY_PATH /usr/local/cuda/lib64/stubs
 
@@ -115,8 +114,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcudnn7=$CUDNN_VERSION-1+cuda10.0 \
 libcudnn7-dev=$CUDNN_VERSION-1+cuda10.0 \
 && \
-    apt-mark hold libcudnn7 && \
-    rm -rf /var/lib/apt/lists/*
+    apt-mark hold libcudnn7
 
 # END CUDA stuff
 
@@ -137,9 +135,12 @@ echo "export DISPLAY=\":0\"" >> /root/.bashrc
 RUN git config --global user.name "Matthias Mayer" && git config --global user.email "matthias.mayer@tum.de"
 
 # Update all gits make them
+RUN cd /home/catkin_ws/src && git clone git@github.com:kingjin94/octomap_mapping.git
 RUN sh -c "cd /home/catkin_ws/src && find . -mindepth 1 -maxdepth 1 -type d -print -exec git -C {} pull \;" && \
 	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && catkin_make_isolated -j16 --force-cmake"
+
+RUN apt-get install -y nano geany
 
 # Fix "[REST.cc:205] Error in REST request" with https://bitbucket.org/osrf/gazebo/issues/2607/error-restcc-205-during-startup-gazebo
 # RUN cd /root/.ignition/fuel/ && sed -i -e 's/url: https:\/\/api.ignitionfuel.org/url: https:\/\/api.ignitionrobotics.org/g' config.yaml
