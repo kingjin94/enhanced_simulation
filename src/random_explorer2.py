@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import sys
 import copy
 import rospy
@@ -36,7 +37,7 @@ def force_home():
 	# point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
 	point1.positions = [0.0, -1.5, 0.0, -1.8702679826187074, 0, 2.873639813867795 - 1.51, 0.06015034910227879]
 	point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
-	point1.time_from_start = rospy.Duration(2.)
+	point1.time_from_start = rospy.Duration(4.)
 	joint_traj.points = [point1]
 	goal.trajectory = joint_traj
 	joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
