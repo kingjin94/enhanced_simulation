@@ -1,4 +1,4 @@
-#!/usr/bin python
+#!/usr/bin/python
 # Closes and opens the gripper claws
 # Tested
 import rospy
