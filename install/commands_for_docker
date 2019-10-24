@@ -17,3 +17,6 @@ sudo docker system prune
 
 # N.B.: May need to change $DISPLAY variable such that same as host
 export DISPLAY=":0"
+
+# Extended docker run for real robot; insert <own-ip> as the one which is on the same network as the NUC
+sudo docker run -it     --env="DISPLAY"     --env="QT_X11_NO_MITSHM=1"     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --runtime=nvidia  --net=host --privileged --env ROS_MASTER_URI=http://<own-ip>:11311 --env ROS_HOSTNAME=$HOSTNAME.local --env ROS_IP=<own-ip> --name "panda_real"   panda_real     bash
