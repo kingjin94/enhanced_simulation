@@ -1,3 +1,8 @@
+# Before hand: Install realsense driver:
+# * for supported kernels via apt: https://github.com/IntelRealSense/librealsense/blob/master/doc/distribution_linux.md
+# * for others self-compiled: https://github.com/IntelRealSense/librealsense/blob/master/doc/installation.md
+# Test if working on host via (librealsense-folder/build/tools/realsense-viewer/)realsense-viewer
+
 FROM panda_sim5
 
 RUN apt-get install -y iputils-ping net-tools usbutils # For network & usb debug
@@ -18,11 +23,14 @@ RUN cd /home && \
 	cmake -DCMAKE_BUILD_TYPE=Release ../ && \
 	make uninstall && make clean && make -j 16 && make install
 
+# Test this step by ruuning /home/librealsense/build/tools/realsense-viewer/realsense-viewer
+# If errors such as "Cannot identify '/dev/video5 Last Error: No such file or directory" occur restart the container
+
 # Install ROS part 
 RUN cd /home/catkin_ws/src && \
 	git clone https://github.com/IntelRealSense/realsense-ros.git && \
 	git clone git@github.com:pal-robotics/ddynamic_reconfigure.git && \
 	cd realsense-ros/ && \
 	git checkout `git tag | sort -V | grep -P "^\d+\.\d+\.\d+" | tail -1` && \
-	cd /home/catkin_ws && \
-	catkin_make_isolated
+	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin_make_isolated -j16"
