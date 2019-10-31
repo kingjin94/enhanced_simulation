@@ -20,12 +20,13 @@ import actionlib
 from control_msgs.msg import FollowJointTrajectoryAction, FollowJointTrajectoryGoal
 from trajectory_msgs.msg import JointTrajectory, JointTrajectoryPoint
 
-
+VEL_SCALE = 0.05
+ACC_SCALE = 0.05
 MIN_DIST_LOOKOUTS = 0.4
 
 rospy.init_node('random_explorer', anonymous=True)
 
-def force_home():
+def force_home(move_group):
 	# Move to better starting position
 	print("Moving to start position")
 	client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
@@ -37,7 +38,8 @@ def force_home():
 	# point1.positions = [0.33877080806309046, -1.5, -1.2750252749223279, -1.8702679826187074, 2.4926642728445163, 2.873639813867795 - 1.51, 0.06015034910227879]
 	point1.positions = [0.0, -1.5, 0.0, -1.8702679826187074, 0, 2.873639813867795 - 1.51, 0.06015034910227879]
 	point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
-	point1.time_from_start = rospy.Duration(4.)
+	delta_joints = np.abs(np.asarray(point1.positions) - np.asarray(move_group.get_current_joint_values()))
+	point1.time_from_start = rospy.Duration(np.max(delta_joints) / 0.25) # Scale such that 0.25 rad/s  #rospy.Duration(4.)
 	joint_traj.points = [point1]
 	goal.trajectory = joint_traj
 	joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
@@ -54,22 +56,23 @@ def distance_pos_list(prev_positions, pos):
 		
 def look_around(move_group, robot, scanned_positions):
 	move_group.stop()
-	move_group.set_max_velocity_scaling_factor(0.5) # Allow 50 % of the set maximum joint velocities, are moving only short distances
-	move_group.set_max_acceleration_scaling_factor(0.5)
 	failures = 0
 	print("Looking around")
 	joint_goal = np.asarray(robot.get_current_state().joint_state.position[:7])
-	for c, j4 in enumerate(np.linspace(-170+10,170-10,num=7)):
-		for d, j5 in enumerate((c%2)*np.linspace(-5+15,219-10,num=7) + ((c+1)%2)*np.linspace(219-10,-5+10,num=7)):
+	for c, j4 in enumerate(np.linspace(robot.get_joint('panda_joint5').min_bound()*180/pi+10, robot.get_joint('panda_joint5').max_bound()*180/pi-10,num=7)):
+		for d, j5 in enumerate((c%2)*np.linspace(robot.get_joint('panda_joint6').min_bound()*180/pi+10, robot.get_joint('panda_joint6').max_bound()*180/pi-10,num=7) \
+								+ ((c+1)%2)*np.linspace(robot.get_joint('panda_joint6').max_bound()*180/pi-10, robot.get_joint('panda_joint6').min_bound()*180/pi+10,num=7)):
 			joint_goal[4] = j4 / 180 * pi
 			joint_goal[5] = j5 / 180 * pi
 			joint_goal[6] = pi/4
 			
 			try: 
+				move_group.set_max_velocity_scaling_factor(VEL_SCALE) # Allow 10 % of the set maximum joint velocities
+				move_group.set_max_acceleration_scaling_factor(ACC_SCALE)
 				move_group.go(joint_goal, wait=True)
 			except Exception as e:
 				failures += 1
-				print("Impossible orientation")
+				print("Impossible orientation / collision")
 				print(e)
 			move_group.stop()
 			rospy.sleep(1.)
@@ -78,9 +81,6 @@ def look_around(move_group, robot, scanned_positions):
 		scanned_positions.append(move_group.get_current_pose().pose.position)
 	move_group.stop()
 	rospy.sleep(1.)
-	
-	move_group.set_max_velocity_scaling_factor(0.2) # Allow 10 % of the set maximum joint velocities
-	move_group.set_max_acceleration_scaling_factor(0.1)
 	
 def get_new_random_direction():
 	position = move_group.get_current_pose().pose.position
@@ -102,26 +102,26 @@ def random_walk(move_group, robot):
 	
 	while True:		
 		if min(distance_pos_list(scanned_positions, move_group.get_current_pose().pose.position)) > MIN_DIST_LOOKOUTS:
-			look_around(move_group, robot, scanned_positions)
-			#print("Skipped looking around")
+			#look_around(move_group, robot, scanned_positions)
+			print("Skipped looking around")
 		else:
 			print("Was here before")
 		
 		print("Moving to new position")
-		move_group.set_max_velocity_scaling_factor(0.2) # Allow 10 % of the set maximum joint velocities
-		move_group.set_max_acceleration_scaling_factor(0.1)
+		move_group.set_max_velocity_scaling_factor(VEL_SCALE) # Allow 10 % of the set maximum joint velocities
+		move_group.set_max_acceleration_scaling_factor(ACC_SCALE)
 		# Find new positions and go to them
 		num_replan = 0
 		while True:
 			move_group.stop()	
 			if num_replan > 100:
 				print("Still nothing found .. forcing home")
-				force_home()
+				force_home(move_group)
 				num_replan = 0
 				move_direction = get_new_random_direction()
 				
-			move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
-			move_group.set_max_acceleration_scaling_factor(0.05)
+			move_group.set_max_velocity_scaling_factor(VEL_SCALE) # Allow 10 % of the set maximum joint velocities
+			move_group.set_max_acceleration_scaling_factor(ACC_SCALE)
 			
 			pose_goal.position = move_group.get_current_pose().pose.position
 			print("I'm here:")
@@ -146,6 +146,8 @@ def random_walk(move_group, robot):
 				
 			tmp_tolerance = move_group.get_goal_orientation_tolerance()
 			move_group.set_goal_orientation_tolerance(20.) # Eef orientation not important, look around anyway
+			move_group.set_max_velocity_scaling_factor(VEL_SCALE) # Allow 10 % of the set maximum joint velocities
+			move_group.set_max_acceleration_scaling_factor(ACC_SCALE)
 			(plan, fraction) = move_group.compute_cartesian_path([pose_goal], 0.01, 1.0)
 			move_group.set_goal_orientation_tolerance(tmp_tolerance)
 			exec_time = plan.joint_trajectory.points[-1].time_from_start.to_sec()
@@ -185,10 +187,6 @@ def random_walk(move_group, robot):
 				return True
 		except rospy.exceptions.ROSException:
 			print("No feedback on progress received")
-		
-		
-
-force_home()
 
 # Start Motion Planner
 
@@ -200,13 +198,14 @@ scene = moveit_commander.PlanningSceneInterface()
 
 group_name = "panda_arm"
 move_group = moveit_commander.MoveGroupCommander(group_name)
-move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
-move_group.set_max_acceleration_scaling_factor(0.1)
+move_group.set_max_velocity_scaling_factor(VEL_SCALE) # Allow 10 % of the set maximum joint velocities
+move_group.set_max_acceleration_scaling_factor(ACC_SCALE)
 
+force_home(move_group)
 
 try:
 	print("Start exploring")
-	random_walk(move_group, robot)
+	# random_walk(move_group, robot)
 	print("Visual done")
 	# Kill all vision nodes; make sure important topics are latched, esp. table
 	
