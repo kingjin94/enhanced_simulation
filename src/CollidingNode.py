@@ -15,15 +15,20 @@ class CollidingNode(object):
 		self.pub = rospy.Publisher('/panda/bumper/colliding', CollisionState, queue_size=10)
 
 		# find all bumper topics and subscribe
-		topics = rospy.get_published_topics()
 		self.observedLinks = [] # List of all links under observance
 		self.last_collision_times = {} # Last collision time for each link
-		for name, msgType in topics:
-			if msgType == "gazebo_msgs/ContactsState" and "/panda/bumper/panda_" in name:
-				rospy.Subscriber(name, ContactsState, 
-					callback=self.collision_listener, callback_args=name)
-				self.observedLinks.append(name)
-				self.last_collision_times[name] = rospy.get_rostime()
+		while "/panda/bumper/panda_probe_ball" not in self.observedLinks:
+			rospy.sleep(1.0)
+			rospy.loginfo("Waiting for /panda/bumper/panda_probe_ball")
+			topics = rospy.get_published_topics()
+			self.observedLinks = [] # List of all links under observance
+			self.last_collision_times = {} # Last collision time for each link
+			for name, msgType in topics:
+				if msgType == "gazebo_msgs/ContactsState" and "/panda/bumper/panda_" in name:
+					rospy.Subscriber(name, ContactsState, 
+						callback=self.collision_listener, callback_args=name)
+					self.observedLinks.append(name)
+					self.last_collision_times[name] = rospy.get_rostime()
 
 	def collision_listener(self, msg, link_name):
 		if any(msg.states): # atleast one valid collision point
