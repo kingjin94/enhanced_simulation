@@ -35,8 +35,10 @@ class TactileRefiner(object):
 		self.scene = moveit_commander.PlanningSceneInterface()
 		   
 		self.move_group = moveit_commander.MoveGroupCommander(group_name)
-		self.move_group.set_max_velocity_scaling_factor(1.0) # Allow 10 % of the set maximum joint velocities
-		self.move_group.set_max_acceleration_scaling_factor(0.1)
+		self.max_vel = 1.0
+		self.max_acc = 0.1
+		self.move_group.set_max_velocity_scaling_factor(self.max_vel) # Allow 10 % of the set maximum joint velocities
+		self.move_group.set_max_acceleration_scaling_factor(self.max_acc)
 		
 		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()
@@ -137,8 +139,8 @@ class TactileRefiner(object):
 		if q_ik is None:
 			print("Not even IK works")
 			return False
-		self.move_group.set_max_velocity_scaling_factor(1.0) # Allow 10 % of the set maximum joint velocities
-		self.move_group.set_max_acceleration_scaling_factor(0.1)
+		self.move_group.set_max_velocity_scaling_factor(self.max_vel) # Allow 10 % of the set maximum joint velocities
+		self.move_group.set_max_acceleration_scaling_factor(self.max_acc)
 		self.move_group.set_planning_time(2.0)
 		# (plan, fraction) = self.move_group.compute_cartesian_path([pose], 0.05, 1.0)
 		self.move_group.set_start_state_to_current_state()
