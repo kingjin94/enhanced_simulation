@@ -159,7 +159,7 @@ class TactileRefiner(object):
 			rospy.sleep(exec_time) # Wait till arrived		
 			# print(plan.joint_trajectory.points[-1])
 			self.go_to_q(plan.joint_trajectory.points[-1].positions, dt=0.2)
-			self.move_group.stop()
+			# self.move_group.stop()
 			rospy.sleep(1.)
 			return True	
 		except KeyboardInterrupt:
