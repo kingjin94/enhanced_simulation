@@ -34,3 +34,22 @@ RUN cd /home/catkin_ws/src && \
 	git checkout `git tag | sort -V | grep -P "^\d+\.\d+\.\d+" | tail -1` && \
 	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
 	cd /home/catkin_ws/ && catkin_make_isolated -j16"
+	
+# Install Calibration tools
+RUN cd /home/catkin_ws/src && \
+	git clone git@github.com:tuw-robotics/tuw_marker_detection.git && \
+	git clone git@github.com:IFL-CAMP/easy_handeye.git && \
+	cd /home/catkin_ws && rosdep install -iyr --from-paths src && \
+	apt-get install -y python-catkin-tools && \
+	sh -c "cd /home/catkin_ws/src && find . -mindepth 1 -maxdepth 1 -type d -print -exec git -C {} pull \;" && \
+	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin build -DFranka_DIR:PATH=/home/libfranka/build"
+	
+	
+
+# Get own gits for real robot
+RUN cd /home/catkin_ws/src && \
+	git clone git@github.com:kingjin94/real_robot_explorer.git && \
+	sh -c "cd /home/catkin_ws/src && find . -mindepth 1 -maxdepth 1 -type d -print -exec git -C {} pull \;" && \
+	/bin/bash -c "source /opt/ros/melodic/setup.bash && \
+	cd /home/catkin_ws/ && catkin build"
