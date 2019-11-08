@@ -28,6 +28,14 @@ class VisualExplorer(touchTable2.TactileRefiner):
 		self.min_dist_lookouts = min_dist_lookouts
 		self.walk_direction = None
 		
+		# To know when done --> velocity observer
+		rospy.Subscriber("/joint_states", JointState, 
+			callback=self.velocity_observer)
+		self.robot.total_joint_velocity = np.nan # Single Writer is Callback
+		
+	def velocity_observer(self, msg):
+		self.robot.eef_velocity = np.linalg.norm(msg.velocity[:7])
+	
 	def go_to_q_safe(self, q):	
 		#print("Goal: {}".format(q))
 		try: 
@@ -54,22 +62,22 @@ class VisualExplorer(touchTable2.TactileRefiner):
 		
 	def wait_for_move_end(self):
 		print("Wait for end of move")
-		while True:
-			state = rospy.wait_for_message("/joint_states", JointState,  timeout=2.)
+		while not rospy.is_shutdown():
 			#print(state)
 			#print(state.velocity[:7])
 			#print(np.linalg.norm(state.velocity[:7]))
-			if np.linalg.norm(state.velocity[:7]) < 0.001:
+			if self.robot.eef_velocity < 0.001:
 				return
+			rospy.sleep(0.01)
 		
 	def look_around(self):
 		# self.move_group.stop()
 		failures = 0
 		print("Looking around")
 		joint_goal = np.asarray(self.robot.get_current_state().joint_state.position[:7])
-		for c, j4 in enumerate(np.linspace(self.robot.get_joint('panda_joint5').min_bound()*180/pi+10, self.robot.get_joint('panda_joint5').max_bound()*180/pi-10,num=7)): # Should be 7 for full scan
-			for d, j5 in enumerate((c%2)*np.linspace(self.robot.get_joint('panda_joint6').min_bound()*180/pi+10, self.robot.get_joint('panda_joint6').max_bound()*180/pi-10,num=7) \
-									+ ((c+1)%2)*np.linspace(self.robot.get_joint('panda_joint6').max_bound()*180/pi-10, self.robot.get_joint('panda_joint6').min_bound()*180/pi+10,num=7)):
+		for c, j4 in enumerate(np.linspace(self.robot.get_joint('panda_joint5').min_bound()*180/pi+10, self.robot.get_joint('panda_joint5').max_bound()*180/pi-10,num=5)): # Was 7 for full scan. Range: 299 for FOV of 74
+			for d, j5 in enumerate((c%2)*np.linspace(self.robot.get_joint('panda_joint6').min_bound()*180/pi+10, self.robot.get_joint('panda_joint6').max_bound()*180/pi-10,num=5) \
+									+ ((c+1)%2)*np.linspace(self.robot.get_joint('panda_joint6').max_bound()*180/pi-10, self.robot.get_joint('panda_joint6').min_bound()*180/pi+10,num=5)): # Range of 188 for FOV of 60
 				joint_goal[4] = j4 / 180 * pi
 				joint_goal[5] = j5 / 180 * pi
 				joint_goal[6] = pi/4
@@ -112,7 +120,7 @@ class VisualExplorer(touchTable2.TactileRefiner):
 			print(self.walk_direction)
 			pose_goal.position.x = self.walk_direction[0] + pose_goal.position.x
 			pose_goal.position.y = self.walk_direction[1] + pose_goal.position.y
-			pose_goal.position.z = max(0.25, self.walk_direction[2] + pose_goal.position.z) # Make sure he stays over the table
+			pose_goal.position.z = max(0.33, self.walk_direction[2] + pose_goal.position.z) # Make sure he stays over the table and shoulder such that less knotted
 					
 			# ori = random_quaternion()
 			# pose_goal.orientation.x = ori[0]
@@ -139,7 +147,7 @@ class VisualExplorer(touchTable2.TactileRefiner):
 		self.walk_direction = None # Did not manage to go 10 cm --> forget this direction and choose new next time
 		
 	def run(self):
-		while True:
+		while not rospy.is_shutdown():
 			try:
 				mapEntropyMsg = rospy.wait_for_message("/octomap_new/entropy", Float64,  timeout=2.)
 				tableMsg = rospy.wait_for_message("/octomap_new/table", table,  timeout=2.)
