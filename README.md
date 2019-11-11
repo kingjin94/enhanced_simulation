@@ -22,7 +22,7 @@ First start-up
 
 Run with the real robot
 ----------
-One needs the Panda robot by Franka Emika with a FCI license and a Intel RealSense D435 to run this demo. Drivers for the Intel camera must be installed on the PC the camera is connected to. FCI is assumed to be running on a dedicated second PC running a real-time capable Linux.
+One needs the Panda robot by Franka Emika with a FCI license and a Intel RealSense D435 to run this demo. Drivers for the Intel camera must be installed on the PC the camera is connected to (see https://github.com/IntelRealSense/librealsense). FCI is assumed to be running on a dedicated second PC running a real-time capable Linux.
 
 Now build the docker container under install/realRobot/ or install all the packages and their dependencies in your main PC's catkin_ws. If FCI runs on a second PC it needs panda_moveit_control_only installed locally and the ROS network must be established between the main PC and the FCI host (run the docker container with --net=host and --priviledged to interface the other PC and realsense camera via USB). Then the demo should be startable with the lauchscripts real_robot_explorer/setupExplorer.launch and real_robot_explorer/randomExplorer.launch. You may want to callibrate the camera <-> hand offset with real_robot_explorer/calibrate.launch beforehand. Also make sure that the main PC can ssh into the one running FCI such that the local controller from panda_moveit_control_only can be restarted remotely.
 
@@ -43,6 +43,9 @@ Additionaly, for use with the real Panda robot the following packages are needed
 
 * https://github.com/kingjin94/real_robot_explorer (to be installed on the PC that rund the simulation)
 * https://github.com/kingjin94/panda_moveit_control_only, based on panda_moveit_config by Franka Emika (to be installed on the PC interacting with Panda via FCI)
+* https://github.com/IntelRealSense/realsense-ros
+* https://github.com/tuw-robotics/tuw_marker_detection
+* https://github.com/IFL-CAMP/easy_handeye
 
 Available topics
 -------
