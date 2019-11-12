@@ -37,10 +37,13 @@ class TactileRefiner(object):
 		self.scene = moveit_commander.PlanningSceneInterface()
 		   
 		self.move_group = moveit_commander.MoveGroupCommander(group_name)
-		self.move_group.set_max_velocity_scaling_factor(0.1) # Allow 10 % of the set maximum joint velocities
-		self.move_group.set_max_acceleration_scaling_factor(0.05)
 		self.move_group.set_num_planning_attempts(10)
 		self.move_group.set_planning_time(2)
+		self.max_vel = 1.0
+		self.max_acc = 0.1
+		self.move_group.set_max_velocity_scaling_factor(self.max_vel) # Allow 10 % of the set maximum joint velocities
+		self.move_group.set_max_acceleration_scaling_factor(self.max_acc)
+
 		
 		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()
@@ -51,17 +54,29 @@ class TactileRefiner(object):
 		# Start working
 		self.go_home()
 	
-	def wait_for_joint_arrival(self, q):
+	def wait_for_joint_arrival(self, q, repeat_time = 1.):
 		new = True
+		start = rospy.Time.now()
 		while not rospy.is_shutdown() and \
 			(np.linalg.norm(q-self.robot.get_current_state().joint_state.position[:7]) > 0.1 or \
 			np.linalg.norm(self.robot.get_current_state().joint_state.velocity[:7]) > 0.1):
 			if new:
 				print("Waiting for arrival")
 				new = False
+				
+			if start + rospy.Duration.from_sec(repeat_time) < rospy.Time.now():
+				print("Reissue")
+				self.go_to_q(q, wait=False)
+				start = rospy.Time.now()
 
-	def go_to_q(self, q, dt=1., wait=True):
+	def go_to_q(self, q, dt=1., wait=True, exact=False):
+		"""
+		dt deprecated; NEW: scale sucht that maximum joint velocity is 1/4 rad/s
+		"""
 		q = np.asarray(q)
+		if not exact and np.linalg.norm(q-np.asarray(self.move_group.get_current_joint_values())) < 0.1:
+			print("Close enough already")
+			return
 		client = actionlib.SimpleActionClient('/panda_arm_controller/follow_joint_trajectory', FollowJointTrajectoryAction)
 		#print("Waiting for action server ...")
 		client.wait_for_server()
@@ -71,7 +86,8 @@ class TactileRefiner(object):
 		point1 = JointTrajectoryPoint()
 		point1.positions = q.tolist()
 		point1.velocities = [0., 0., 0., 0., 0., 0., 0.]
-		point1.time_from_start = rospy.Duration(dt)
+		delta_joints = np.abs(np.asarray(point1.positions) - np.asarray(self.move_group.get_current_joint_values()))
+		point1.time_from_start = rospy.Duration(max(0.5, np.max(delta_joints) / 0.25))
 		joint_traj.points = [point1]
 		goal.trajectory = joint_traj
 		joint_traj.header.stamp = rospy.Time.now()+rospy.Duration(1.0)
@@ -125,17 +141,32 @@ class TactileRefiner(object):
 		return np.linalg.norm(self.get_current_rotation() - rot)
 	
 	def go_to_pose(self, pose):
-		(plan, fraction) = self.move_group.compute_cartesian_path([pose], 0.01, 1.0)
+		q = np.asarray(self.robot.get_current_state().joint_state.position[:7])
+		q_ik = self.kdl_kin.inverse(pose, q)
+		if q_ik is None:
+			print("Not even IK works")
+			return False
+		self.move_group.set_max_velocity_scaling_factor(self.max_vel) # Allow 10 % of the set maximum joint velocities
+		self.move_group.set_max_acceleration_scaling_factor(self.max_acc)
+		self.move_group.set_planning_time(2.0)
+		# (plan, fraction) = self.move_group.compute_cartesian_path([pose], 0.05, 1.0)
+		self.move_group.set_start_state_to_current_state()
+		self.move_group.set_pose_target(pose, self.move_group.get_end_effector_link())
+		plan = self.move_group.plan()
+		if not plan or len(plan.joint_trajectory.points) <= 1:
+			return False
+		#print(plan)
 		exec_time = plan.joint_trajectory.points[-1].time_from_start.to_sec()
-		if fraction < 0.2 or not (exec_time < 10.0) \
+		if not (exec_time < 15.0) \
 			or not (1 < len(plan.joint_trajectory.points) < 100):
+			#fraction < 0.2 or 
 			return False
 		try:
 			ret = self.move_group.execute(plan, wait=False) # Move to goal
 			rospy.sleep(exec_time) # Wait till arrived		
 			# print(plan.joint_trajectory.points[-1])
 			self.go_to_q(plan.joint_trajectory.points[-1].positions, dt=0.2)
-			self.move_group.stop()
+			# self.move_group.stop()
 			rospy.sleep(1.)
 			return True	
 		except KeyboardInterrupt:
@@ -156,25 +187,37 @@ class TactileRefiner(object):
 		q_ik = self.kdl_kin.inverse(pose_d, q)
 		
 		if q_ik is not None:
-			self.go_to_q(q_ik, wait=False)
+			self.go_to_q(q_ik, wait=True, exact=True)
+			return 0
 		else:
 			print("IK not successful")
+			return -1
 	
 	def go_straight_till_coll(self, x_step=0, y_step=0, z_step=0):
 		""" Moves along step direction till a collision is sensed; if probe_ball collided returns collisionstate else None """
 		pos_to_keep = self.get_current_position()
 		ori_to_keep = self.get_current_rotation()
-		while True:
+		IK_retries = 10
+		while IK_retries>0:
 			pos_to_keep[0] += x_step
 			pos_to_keep[1] += y_step
 			pos_to_keep[2] += z_step
-			self.p_step(pos_to_keep, ori_to_keep)
+			IK_retries += self.p_step(pos_to_keep, ori_to_keep)
+			rospy.sleep(0.1)
 			touchSensorMsg = rospy.wait_for_message("/panda/bumper/colliding", CollisionState)
 			if touchSensorMsg.colliding:
+				print("Detected Collision")
 				if '/panda/bumper/panda_probe_ball' in touchSensorMsg.collidingLinks: # Collided with sensing part -> wait for details
 					ballSensorMsg = ContactsState()
+					start = rospy.Time.now()
 					while ballSensorMsg.states == []:
-						ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState)
+						try:
+							ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState, timeout=0.5)
+						except:
+							print("Time out on collision")
+						if rospy.Time.now() > start + rospy.Duration.from_sec(3): # Don't wait for ever
+							print("False alarm")
+							break
 					print("Touched with state: \n{}".format(ballSensorMsg))
 					return ballSensorMsg
 				else: # Collided with wrong part -> ignore this collision in later evaluation
@@ -200,7 +243,7 @@ class TactileRefiner(object):
 		""" rotates pose encoded by quart by yaw_angle about its z axis """
 		return self.rotate_quart_around_axis(quart, (0,0,1), yaw_angle)
 	
-	def try_to_go_to_pose(self, pose_goal, arrival_test= lambda _1,_2: True, modifier = lambda _1,_2: _2, timeout = 100):
+	def try_to_go_to_pose(self, pose_goal, arrival_test= lambda _1,_2: True, modifier = lambda _1,_2: _2, timeout = 10):
 		""" Tries to go to a random position over the table; gives up after timeout planning attempts; return True if close to the desired point """
 		print("Trying to reach")
 		print(pose_goal)
@@ -246,6 +289,8 @@ class TableRefiner(TactileRefiner):
 		self.table_msg = rospy.wait_for_message("/octomap_new/table", table)
 		
 		self.touched_points = []
+		
+		self.max_reach = 0.9 # Maximum distance from 0,0,0 the robot might be able to reach
 	
 	def sample_pose_over_table(self, ox = 1, oy = 0, oz = 0, ow = 0):
 		pose_goal = geometry_msgs.msg.Pose()
@@ -282,17 +327,17 @@ class TableRefiner(TactileRefiner):
 				roll > 2.967 and roll < 3.316 and \
 				abs(pitch) < 0.175) # x about downwards <=> roll = 180+-10 pitch = 0+-10
 		
-		def modify_over_can(self, pose_goal):
+		def modify_over_table(self, pose_goal):
 			pose_goal.orientation = self.rotate_quart_around_z(pose_goal.orientation, yaw_angle=random.uniform(0, 3.141))
 			return pose_goal
 		
 		
 		goal_pose = self.sample_pose_over_table()
-		return self.try_to_go_to_pose(goal_pose, arrival_test=arrived_over_table, modifier=modify_over_can)
+		return self.try_to_go_to_pose(goal_pose, arrival_test=arrived_over_table, modifier=modify_over_table)
 		
 	def approach_table_straight(self):
 		""" Approaches the table by moving along the long axis of the probing tool till a collision is sensed """
-		return self.go_straight_till_coll(z_step=-0.01)
+		return self.go_straight_till_coll(z_step=-0.002)
 
 	def depart_from_table(self):
 		""" More or less safely moves away from table """
@@ -334,13 +379,16 @@ class TableRefiner(TactileRefiner):
 		new_table.normal.x = n[0]
 		new_table.normal.y = n[1]
 		new_table.normal.z = n[2]
-		new_table.max.z = touch_pts_mean[2,:] - 0.5 # Offset between world in gazebo and in ros
+		if "/franka_state_controller/F_ext" in [x for x,y in rospy.get_published_topics()]: # Indicator for real robot; hacky
+			new_table.max.z = touch_pts_mean[2,:] 
+		else:
+			new_table.max.z = touch_pts_mean[2,:] - 0.5 # Offset between world in gazebo and in ros
 		new_table.header.stamp = rospy.Time.now()
 		
 		print(new_table)
 		self.table_publisher.publish(new_table)
 	
-	def touch_and_refine_table(self, touchPts=10):
+	def touch_and_refine_table(self, touchPts=5):
 		self.go_home()
 		
 		while(len(self.touched_points) < touchPts):
