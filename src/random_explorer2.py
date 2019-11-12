@@ -180,7 +180,7 @@ def random_walk(move_group, robot):
 			mapEntropyMsg = rospy.wait_for_message("/octomap_new/entropy", Float64,  timeout=2.)
 			tableMsg = rospy.wait_for_message("/octomap_new/table", table,  timeout=2.)
 			
-			if mapEntropyMsg.data < -0.5 and tableMsg.score > 900000:
+			if mapEntropyMsg.data < -0.4 and tableMsg.score > 500000:
 				print("Table found and map good enough")
 				print("Moving on to touching the table")
 				return True
@@ -213,7 +213,7 @@ try:
 	
 	# Refine table
 	refinerTable = touchTable2.TableRefiner()
-	refinerTable.touch_and_refine_table()
+	refinerTable.touch_and_refine_table(touchPts=4)
 	print("Table done")
 	
 	# Refine cans
