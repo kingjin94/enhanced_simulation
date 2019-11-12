@@ -3,7 +3,7 @@
 # * for others self-compiled: https://github.com/IntelRealSense/librealsense/blob/master/doc/installation.md
 # Test if working on host via (librealsense-folder/build/tools/realsense-viewer/)realsense-viewer
 
-FROM panda_sim5
+FROM panda_sim
 
 RUN apt-get install -y iputils-ping net-tools usbutils # For network & usb debug
 

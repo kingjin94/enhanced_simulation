@@ -11,3 +11,5 @@ cd ../desktop-full
 sudo docker build -t ros:melodic-desktop-full .
 cd ../../../../../../
 sudo docker build --build-arg SSH_PRIVATE_KEY="$(cat $HOME/.ssh/id_rsa)" -t panda_sim .
+cd realRobot
+sudo docker build -t panda_real .

@@ -3,7 +3,7 @@ FROM ros:melodic-desktop-full
 # Steps for franka sim by https://erdalpekel.de/?p=55
 # Install libfranka from source https://frankaemika.github.io/docs/install_linux.html
 RUN cd /home && apt update && \
-	apt install build-essential cmake git libpoco-dev libeigen3-dev && \
+	apt install -y build-essential cmake git libpoco-dev libeigen3-dev && \
 	git clone --recursive https://github.com/frankaemika/libfranka && \
 	cd libfranka && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && \
 	cmake --build . -- -j16 # allow make to multithread
@@ -27,7 +27,7 @@ RUN cd /home && mkdir -p catkin_ws/src && cd catkin_ws/src && \
 	git clone ssh://git@github.com/kingjin94/panda_moveit_config.git && \
 	git clone --branch simulation ssh://git@github.com/kingjin94/franka_ros && \
 	# Not yet ready for primetime git clone --branch melodic-devel ssh://git@github.com/kingjin94/gazebo_ros_pkgs.git && \
-	cd /home/catkin_ws && apt install libboost-filesystem-dev && \
+	cd /home/catkin_ws && apt install -y libboost-filesystem-dev && \
 	rosdep install --from-paths src --ignore-src -y --skip-keys libfranka --skip-keys moveit_perception
 
 RUN /bin/bash -c "source /opt/ros/melodic/setup.bash && \

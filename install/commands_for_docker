@@ -1,22 +1,26 @@
-# Start a container
-xhost +local:root
+# Start a simulation container with name panda_sim0
 sudo docker run -it     --env="DISPLAY"     --env="QT_X11_NO_MITSHM=1"     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --runtime=nvidia  --name "panda_sim0"   panda_sim     bash
+# Extended docker run for real robot; insert <own-ip> as the one which is on the same network as the NUC
+sudo docker run -it     --env="DISPLAY"     --env="QT_X11_NO_MITSHM=1"     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --runtime=nvidia  --net=host --privileged --env ROS_MASTER_URI=http://<own-ip>:11311 --env ROS_HOSTNAME=$HOSTNAME.local --env ROS_IP=<own-ip> --name "panda_real"   panda_real     bash
+
+# For X.11 forward, needed for the display of GUIs, you may have to run:
+xhost +local:root
+# before the docker run command. Stop this afterwards with:
 xhost -local:root
+# More details and safer alternatives are found in http://wiki.ros.org/docker/Tutorials/GUI
 
 # Add additional shell
-sudo docker exec -it panda_sim0 bash
+sudo docker exec -it <container_name> bash
 
 # Restart container
-sudo docker restart panda_sim0
+sudo docker restart <container_name>
 
 # Stop container
-sudo docker stop panda_sim0
+sudo docker stop <container_name>
 
 # Clean up docker
 sudo docker system prune
 
-# N.B.: May need to change $DISPLAY variable such that same as host
+# N.B.: May need to change $DISPLAY variable such that same as hosts
 export DISPLAY=":0"
 
-# Extended docker run for real robot; insert <own-ip> as the one which is on the same network as the NUC
-sudo docker run -it     --env="DISPLAY"     --env="QT_X11_NO_MITSHM=1"     --volume="/tmp/.X11-unix:/tmp/.X11-unix:rw" --runtime=nvidia  --net=host --privileged --env ROS_MASTER_URI=http://<own-ip>:11311 --env ROS_HOSTNAME=$HOSTNAME.local --env ROS_IP=<own-ip> --name "panda_real"   panda_real     bash
