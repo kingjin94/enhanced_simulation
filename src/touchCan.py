@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from filter_octomap.msg import table, cans, can
 import rospy
 import numpy as np
@@ -11,7 +13,7 @@ import touchTable2
 
 class CanRefiner(touchTable2.TactileRefiner):
 	def __init__(self, group_name = "panda_arm"):
-		super(CanRefiner, self).__init__(group_name)
+		super(CanRefiner, self).__init__(group_name=group_name)
 		
 		# Publisher for refined table
 		self.can_publisher = rospy.Publisher("/octomap_new/cans_touched", cans, queue_size=1, latch=True)
@@ -28,8 +30,6 @@ class CanRefiner(touchTable2.TactileRefiner):
 		
 		self.touched_points_mantle = []
 		self.touched_points_top = []
-		
-		self.max_reach = 1.1 # Maximum distance from 0,0,0 the robot might be able to reach
 		
 	def sample_point_on_top(self):
 		pose_goal = geometry_msgs.msg.Pose()
@@ -49,10 +49,8 @@ class CanRefiner(touchTable2.TactileRefiner):
 				pose_goal.position.x += self.can_msg.centroid_position.x
 				pose_goal.position.y += self.can_msg.centroid_position.y 
 				
-				if pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2 < self.max_reach**2:
+				if self.pose_reachable(pose_goal):
 					return pose_goal
-				else:
-					print("To far ({})".format(pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2))
 		
 	def touch_and_refine_can_top(self, touch_pts=3):
 		""" Touches the top of the can at three points to refine the cans height and position """
@@ -97,22 +95,20 @@ class CanRefiner(touchTable2.TactileRefiner):
 			pose_goal.position.x = math.cos(alpha) * (self.can_msg.radius+0.25) + self.can_msg.centroid_position.x
 			pose_goal.position.y = math.sin(alpha) * (self.can_msg.radius+0.25) + self.can_msg.centroid_position.y 
 			
-			if pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2 < self.max_reach**2:
-				# Find orientation s.t. z_hand points into the can and y_hand is parallel to the world's z axis
-				x_hand = np.asarray((-math.sin(alpha), math.cos(alpha), 0))
-				y_hand = np.asarray((0, 0, -1))
-				z_hand = np.asarray((-math.cos(alpha), -math.sin(alpha), 0))
-				T = np.zeros((4,4))
-				T[3,3] = 1.
-				T[0,:3] = x_hand
-				T[1,:3] = y_hand
-				T[2,:3] = z_hand
-				#print(T.T)
-				pose_goal.orientation = self.numpy_to_orientation(tf.transformations.quaternion_from_matrix(T.T))
+			# Find orientation s.t. z_hand points into the can and y_hand is parallel to the world's z axis
+			x_hand = np.asarray((-math.sin(alpha), math.cos(alpha), 0))
+			y_hand = np.asarray((0, 0, -1))
+			z_hand = np.asarray((-math.cos(alpha), -math.sin(alpha), 0))
+			T = np.zeros((4,4))
+			T[3,3] = 1.
+			T[0,:3] = x_hand
+			T[1,:3] = y_hand
+			T[2,:3] = z_hand
+			#print(T.T)
+			pose_goal.orientation = self.numpy_to_orientation(tf.transformations.quaternion_from_matrix(T.T))
+			if self.pose_reachable(pose_goal):
 				self.pose_pub("/debug/can_mantle/pose", pose_goal)
 				return pose_goal
-			else:
-				print("To far ({})".format(pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2))
 	
 	def mantle_normal_at_pose(self, pose):
 		""" Calculates the the normal of the mantle at the closest point to the given pose"""
@@ -162,7 +158,9 @@ class CanRefiner(touchTable2.TactileRefiner):
 				continue
 	
 	def fit_can_and_publish(self):
-		# TODO
+		assert len(self.touched_points_top) > 0, "To few points on top to refine, need atleast 1"
+		assert len(self.touched_points_mantle) >= 3, "To few points on mantle, need atleast 3 have {}".format(len(self.touched_points_mantle))
+			
 		new_can = can()
 		# Height from np.mean(self.touched_points_top.position.z) - self.table_msg.max.z
 		# Centroid.z = Height/2 + self.table_msg.max.z

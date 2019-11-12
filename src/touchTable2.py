@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 from filter_octomap.msg import table
 import numpy as np
 import random
@@ -27,7 +29,7 @@ from enhanced_sim.msg import CollisionState
 from gazebo_msgs.msg import ContactsState
 
 class TactileRefiner(object):
-	def __init__(self,  group_name = "panda_arm" ):
+	def __init__(self, max_reach = 1.1, group_name = "panda_arm" ):
 		# Moveit init
 		moveit_commander.roscpp_initialize(sys.argv)
 		self.robot = moveit_commander.RobotCommander()
@@ -35,14 +37,19 @@ class TactileRefiner(object):
 		self.scene = moveit_commander.PlanningSceneInterface()
 		   
 		self.move_group = moveit_commander.MoveGroupCommander(group_name)
+		self.move_group.set_num_planning_attempts(10)
+		self.move_group.set_planning_time(2)
 		self.max_vel = 1.0
 		self.max_acc = 0.1
 		self.move_group.set_max_velocity_scaling_factor(self.max_vel) # Allow 10 % of the set maximum joint velocities
 		self.move_group.set_max_acceleration_scaling_factor(self.max_acc)
+
 		
 		# URDF and kinematics init
 		self.urdf_robot = URDF.from_parameter_server()
 		self.kdl_kin = KDLKinematics(self.urdf_robot, self.urdf_robot.links[1].name, self.urdf_robot.links[9].name)
+		
+		self.max_reach = max_reach # Maximum distance from 0,0,0 the robot might be able to reach
 		
 		# Start working
 		self.go_home()
@@ -266,9 +273,19 @@ class TactileRefiner(object):
 		pose_goal_st.header.frame_id = "world"
 		pose_pub.publish(pose_goal_st)
 
+	def pose_reachable(self, pose):
+		if pose.position.x**2+pose.position.y**2+pose.position.z**2 > self.max_reach**2:
+			print("To far")
+			return False
+		q_ik = self.kdl_kin.inverse(pose, eps=0.1, maxiter=1000)
+		if q_ik is None:  # No IK found 
+			print("IK not found")
+			return False
+		return True
+
 class TableRefiner(TactileRefiner):
 	def __init__(self, group_name = "panda_arm"):
-		super(TableRefiner, self).__init__(group_name)
+		super(TableRefiner, self).__init__(group_name=group_name)
 		
 		# Publisher for refined table
 		self.table_publisher = rospy.Publisher("/octomap_new/table_touched", table, queue_size=1, latch=True)
@@ -293,7 +310,7 @@ class TableRefiner(TactileRefiner):
 			pose_goal.position.x = random.uniform(self.table_msg.min.x+.1, self.table_msg.max.x-.1)
 			pose_goal.position.y = random.uniform(self.table_msg.min.y+.1, self.table_msg.max.y-.1)
 			
-			if pose_goal.position.x**2+pose_goal.position.y**2+pose_goal.position.z**2 < self.max_reach**2:
+			if self.pose_reachable(pose_goal):
 				return pose_goal
 		
 	def over_table(self):

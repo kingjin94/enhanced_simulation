@@ -62,11 +62,15 @@ class VisualExplorer(touchTable2.TactileRefiner):
 		
 	def wait_for_move_end(self):
 		print("Wait for end of move")
+		timeout = rospy.Time.now() + rospy.Duration(20.)
 		while not rospy.is_shutdown():
 			#print(state)
 			#print(state.velocity[:7])
 			#print(np.linalg.norm(state.velocity[:7]))
 			if self.robot.eef_velocity < 0.001:
+				return
+			if rospy.Time.now() > timeout:
+				print("Timeout")
 				return
 			rospy.sleep(0.01)
 		
