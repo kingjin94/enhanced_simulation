@@ -159,7 +159,7 @@ class TactileRefiner(object):
 			rospy.sleep(exec_time) # Wait till arrived		
 			# print(plan.joint_trajectory.points[-1])
 			self.go_to_q(plan.joint_trajectory.points[-1].positions, dt=0.2)
-			self.move_group.stop()
+			# self.move_group.stop()
 			rospy.sleep(1.)
 			return True	
 		except KeyboardInterrupt:
@@ -196,7 +196,7 @@ class TactileRefiner(object):
 			pos_to_keep[1] += y_step
 			pos_to_keep[2] += z_step
 			IK_retries += self.p_step(pos_to_keep, ori_to_keep)
-			rospy.sleep(0.1)
+			rospy.sleep(0.8)
 			touchSensorMsg = rospy.wait_for_message("/panda/bumper/colliding", CollisionState)
 			if touchSensorMsg.colliding:
 				print("Detected Collision")
@@ -206,13 +206,18 @@ class TactileRefiner(object):
 					while ballSensorMsg.states == []:
 						try:
 							ballSensorMsg = rospy.wait_for_message("/panda/bumper/panda_probe_ball", ContactsState, timeout=0.5)
+							break
 						except:
 							print("Time out on collision")
 						if rospy.Time.now() > start + rospy.Duration.from_sec(3): # Don't wait for ever
 							print("False alarm")
 							break
-					print("Touched with state: \n{}".format(ballSensorMsg))
-					return ballSensorMsg
+					print(ballSensorMsg)
+					if len(ballSensorMsg.states) > 0:
+						print("Touched with state: \n{}".format(ballSensorMsg))
+						return ballSensorMsg
+					else:
+						continue
 				else: # Collided with wrong part -> ignore this collision in later evaluation
 					return None
 
