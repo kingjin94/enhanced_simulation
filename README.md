@@ -30,12 +30,11 @@ Related Packages
 ------
 For the pure simulation of the robot the following packages were adapted; refer to the individual repositories to find where they were forked from:
 
-* https://github.com/kingjin94/gazebo_ros_pkgs
 * https://github.com/kingjin94/panda_simulation
 * https://github.com/kingjin94/octomap_mapping
 * https://github.com/kingjin94/panda_moveit_config
 * https://github.com/kingjin94/mask_rcnn_ros
-* https://github.com/kingjin94/franka_ros
+* https://github.com/kingjin94/franka_ros/tree/simulation
 * https://github.com/kingjin94/realtime_urdf_filter
 * https://github.com/kingjin94/filter_octomap
 
